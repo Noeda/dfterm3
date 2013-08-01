@@ -1,9 +1,11 @@
 Dfterm3
 =======
 
-This is a remote Dwarf Fortress playing software.
+This is a remote Dwarf Fortress playing software. Or at least will be. Right
+now it is merely a curiosity of early development where ideas are explored and
+nothing actually works yet.
 
-Currently heavily work-in-progress. The current plan is to finish the web
+Heavily work-in-progress. The current plan is to finish the web
 interface so that Dwarf Fortress can be played.
 
 File hierarchy
