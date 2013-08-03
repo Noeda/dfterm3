@@ -16,7 +16,7 @@ cabal-version:       >=1.8
 
 executable dfterm3
   hs-source-dirs:      src
-  ghc-options:         -Wall -threaded
+  ghc-options:         -Wall -threaded -fno-warn-name-shadowing
   main-is:             Main.hs
   build-depends:       base ==4.6.*
                       ,websockets ==0.7.*
@@ -25,6 +25,11 @@ executable dfterm3
                       ,time ==1.4.*
                       ,enumerator ==0.4.*
                       ,transformers ==0.3.*
+                      ,text ==0.11.*
+                      ,lens ==3.9.*
+                      ,array ==0.4.*
+                      ,containers ==0.5.*
+                      ,mtl ==2.1.*
 
 
 

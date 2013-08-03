@@ -2,6 +2,7 @@ module Main ( main ) where
 
 import qualified Dfterm3.WebsocketAccepter as WS
 import Dfterm3.Logging
+import Dfterm3.GamePool
 
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
 import Network ( withSocketsDo )
