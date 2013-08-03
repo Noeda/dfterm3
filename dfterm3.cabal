@@ -30,6 +30,10 @@ executable dfterm3
                       ,array ==0.4.*
                       ,containers ==0.5.*
                       ,mtl ==2.1.*
+                      ,random ==1.0.*
+                      ,stm ==2.4.*
+                      ,bytestring ==0.10.*
+                      ,binary ==0.7.*
 
 
 

@@ -3,6 +3,9 @@ module Main ( main ) where
 import qualified Dfterm3.WebsocketAccepter as WS
 import Dfterm3.Logging
 import Dfterm3.GamePool
+import Dfterm3.CP437Game
+import Dfterm3.Noise
+--import Dfterm3.DummyWatcher
 
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
 import Network ( withSocketsDo )
@@ -21,7 +24,11 @@ main = withSocketsDo $ do
 
     logInfo $ "Using " ++ show capabilities ++ " operating system threads."
 
-    void $ WS.listen 8000
+
+    pool <- newGamePool
+    void $ registerNoiseCP437Game pool
+
+    void $ WS.listen pool 8000
 
     -- The server is service oriented and the main function has nothing to do.
     -- Let us loop forever.

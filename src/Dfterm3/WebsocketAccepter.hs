@@ -7,6 +7,7 @@ module Dfterm3.WebsocketAccepter
     ( listen )
     where
 
+import Dfterm3.GamePool
 import Dfterm3.ServiceKiller
 import Dfterm3.Safe
 import Dfterm3.Logging
@@ -24,8 +25,8 @@ import Control.Monad ( forever )
 --
 -- To stop listening for connections, invoke `Dfterm3.ServiceKiller.kill` on
 -- the returned handle.
-listen :: Word16 -> IO KillHandle
-listen port_number = do
+listen :: GamePool -> Word16 -> IO KillHandle
+listen pool port_number = do
     listener_socket <- listenOn (PortNumber $ safeFromIntegral port_number)
     logInfo $ "Listening for WebSocket connections on port " ++
               show port_number ++ "."
@@ -39,7 +40,7 @@ listen port_number = do
                   show port_number ++ " from " ++ show host_name ++ ":" ++
                   show port
 
-        forkFinally (websocketClient new_client_handle) $ \_ -> do
+        forkFinally (websocketClient pool new_client_handle) $ \_ -> do
             hFlush new_client_handle
             hClose new_client_handle
             logInfo $ "Connection closed on WebSocket interface on port " ++

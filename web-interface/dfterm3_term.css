@@ -1,0 +1,38 @@
+.dfterm3_terminal {
+    font-family: monospace;
+}
+
+.fblack { color: #000; }
+.fred { color: #a00; }
+.fgreen { color: #0a0; }
+.fyellow { color: #aa0; }
+.fblue { color: #00a; }
+.fmagenta { color: #a0a; }
+.fcyan { color: #0aa; }
+.fgray { color: #aaa; }
+.fdarkgray { color: #666; }
+.fbrightred { color: #f00; }
+.fbrightgreen { color: #0f0; }
+.fbrightyellow { color: #ff0; }
+.fbrightblue { color: #00f; }
+.fbrightmagenta { color: #f0f; }
+.fbrightcyan { color: #0ff; }
+.fwhite { color: #fff; }
+
+.bblack { background: #000; }
+.bred { background: #a00; }
+.bgreen { background: #0a0; }
+.byellow { background: #aa0; }
+.bblue { background: #00a; }
+.bmagenta { background: #a0a; }
+.bcyan { background: #0aa; }
+.bgray { background: #aaa; }
+.bdarkgray { background: #666; }
+.bbrightred { background: #f00; }
+.bbrightgreen { background: #0f0; }
+.bbrightyellow { background: #ff0; }
+.bbrightblue { background: #00f; }
+.bbrightmagenta { background: #f0f; }
+.bbrightcyan { background: #0ff; }
+.bwhite { background: #fff; }
+
