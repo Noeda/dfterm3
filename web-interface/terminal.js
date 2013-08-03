@@ -42,6 +42,7 @@ dfterm3_terminal = function() {
     cp437_table[32] = 0x00a0;   // non-breaking space prevents spans from
                                 // becoming empty and messing up the terminal
     // values between 32-127 are the same as ASCII
+    cp437_table[127] = 0xfffd;
     cp437_table[128] = 0x00c7;
     cp437_table[129] = 0x00fc;
     cp437_table[130] = 0x00e9;
@@ -174,7 +175,7 @@ dfterm3_terminal = function() {
     var mapper = function( cp437 ) {
         if ( cp437 <= 32 ) {
             return cp437_table[cp437];
-        } else if ( cp437 <= 127 ) {
+        } else if ( cp437 < 127 ) {
             return cp437;
         } else {
             return cp437_table[cp437];
