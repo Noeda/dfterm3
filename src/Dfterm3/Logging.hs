@@ -26,8 +26,13 @@ logInfo msg = do
     let ZonedTime (LocalTime day (TimeOfDay hour minute sec)) _ =
          utcToZonedTime tz utc_time
 
-    infoM rootLoggerName $ showGregorian day ++ "T" ++ show hour ++
-                           ":" ++ show minute ++ ":" ++
-                           show (floor sec :: Int) ++
+    infoM rootLoggerName $ showGregorian day ++ "T" ++ pad 2 (show hour) ++
+                           ":" ++ pad 2 (show minute) ++ ":" ++
+                           pad 2 (show (floor sec :: Int)) ++
                            " : " ++ msg
+  where
+    pad :: Int -> String -> String
+    pad len str
+        | length str >= len = str
+        | otherwise = pad len ('0':str)
 
