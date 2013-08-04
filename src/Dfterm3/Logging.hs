@@ -14,7 +14,7 @@ import Data.Time
 
 -- | Sets up whatever is necessary to start logging properly.
 initializeLogging :: IO ()
-initializeLogging = do
+initializeLogging =
     updateGlobalLogger rootLoggerName $ setLevel INFO
 
 -- | Log normal operations. Things that are not unusual or indicate anything
@@ -26,7 +26,7 @@ logInfo msg = do
     let ZonedTime (LocalTime day (TimeOfDay hour minute sec)) _ =
          utcToZonedTime tz utc_time
 
-    infoM rootLoggerName $ (showGregorian day) ++ "T" ++ show hour ++
+    infoM rootLoggerName $ showGregorian day ++ "T" ++ show hour ++
                            ":" ++ show minute ++ ":" ++
                            show (floor sec :: Int) ++
                            " : " ++ msg

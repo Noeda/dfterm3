@@ -139,7 +139,7 @@ registerGame pool = do
         atomically $ writeTChan sender_chan GameUnregistered
 
 unregisterGame :: GameInstance a b c -> IO ()
-unregisterGame inst = unregisterer inst
+unregisterGame = unregisterer
 
 -- | Tells everyone that some changes happened in a game.
 --
@@ -178,7 +178,7 @@ enumerateGames = withGamePool $ do
     case maybe_games of
         Nothing -> return []
         Just games ->
-            return $ fmap (\x -> fromDyn x undefined) $ M.elems games
+            return $ fmap (`fromDyn` undefined) $ M.elems games
 
 -- | Given a game instance, indicate that you want to play it.
 --
@@ -190,9 +190,9 @@ playGame :: GameInstance a b c -> IO (Maybe (GameClient a b c))
 playGame inst = do
     my_tchan <- atomically $ dupTChan (writeOutput inst)
     is_gone <- readIORef (gone inst)
-    if is_gone
-      then return Nothing
-      else return $ Just $ GameClient my_tchan
+    return $ if is_gone
+      then Nothing
+      else Just $ GameClient my_tchan
 
 -- Internal functions
 

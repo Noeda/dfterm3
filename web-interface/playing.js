@@ -37,6 +37,7 @@ dfterm3_playing = function() {
                 var array_view = new Uint8Array( array );
                 var w = (array_view[0] << 8) | array_view[1];
                 var h = (array_view[2] << 8) | array_view[3];
+                terminal.resize( w, h );
                 var num_elements = (array_view[4] << 24) |
                                    (array_view[5] << 16) |
                                    (array_view[6] << 8) |

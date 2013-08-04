@@ -7,7 +7,7 @@ dfterm3_terminal = function() {
     var exports = { };
 
     var cp437_table = { };
-    cp437_table[0] = 0xfffd;
+    cp437_table[0] = 0x00a0;
     cp437_table[1] = 0x263a;
     cp437_table[2] = 0x263b;
     cp437_table[3] = 0x2665;
@@ -204,7 +204,7 @@ dfterm3_terminal = function() {
             case 12: fstyle = "fbrightblue "; break;
             case 13: fstyle = "fbrightmagenta "; break;
             case 14: fstyle = "fbrightcyan "; break;
-            case 15: fstyle = "fbrightwhite "; break;
+            case 15: fstyle = "fwhite "; break;
         }
         switch ( background_color ) {
             case 0: bstyle = "bblack"; break;
@@ -222,7 +222,7 @@ dfterm3_terminal = function() {
             case 12: bstyle = "bbrightblue"; break;
             case 13: bstyle = "bbrightmagenta"; break;
             case 14: bstyle = "bbrightcyan"; break;
-            case 15: bstyle = "bbrightwhite"; break;
+            case 15: bstyle = "bwhite"; break;
         }
         return fstyle + bstyle;
     }
@@ -254,8 +254,42 @@ dfterm3_terminal = function() {
             result.appendChild(br);
         }
 
+        function resize( new_w, new_h ) {
+            if ( new_w == this.width() &&
+                 new_h == this.height() ) {
+                return;
+            }
+            while ( result.firstChild ) {
+                result.removeChild(result.firstChild);
+            }
+
+            this.width = function() { return new_w; }
+            this.height = function() { return new_h; }
+
+            span_map = { };
+
+            for ( var x = 0; x < new_w; ++x ) {
+                span_map[x] = { }
+            }
+
+            for ( var y = 0; y < new_h; ++y ) {
+                for ( var x = 0; x < new_w; ++x ) {
+                    var e = document.createElement("span");
+                    e.setAttribute("class", "fgray bblack");
+                    e.textContent = "A";
+                    result.appendChild(e);
+                    span_map[x][y] = e;
+                }
+                var br = document.createElement("br");
+                result.appendChild(br);
+            }
+        }
+
         return { getDOMObject : function () { return result; }
                , cellAt : function ( x, y ) { return span_map[x][y]; }
+               , width : function() { return width; }
+               , height : function() { return height; }
+               , resize : resize
                , setCP437CellAt : function ( x
                                            , y
                                            , cp437

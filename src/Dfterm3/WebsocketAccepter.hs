@@ -31,7 +31,7 @@ listen pool port_number = do
     logInfo $ "Listening for WebSocket connections on port " ++
               show port_number ++ "."
 
-    newKillHandle <$> (forkFinally (listener listener_socket) $ \_ -> do
+    newKillHandle <$> forkFinally (listener listener_socket) (\_ ->
         S.close listener_socket)   -- Don't wait for garbage collector
   where
     listener listener_socket = forever $ do

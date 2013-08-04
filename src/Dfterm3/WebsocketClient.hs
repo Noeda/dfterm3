@@ -40,8 +40,8 @@ websocketClient pool handle = do
 client :: Handle -> GamePool -> WebSockets DftermProto ()
 client handle pool = do
     -- Just pick the first game available
-    games <- liftIO $ (enumerateGames pool ::
-                       IO [GameInstance CP437Game () CP437Changes])
+    games <- liftIO (enumerateGames pool ::
+                     IO [GameInstance CP437Game () CP437Changes])
     case games of
         [] -> liftIO (threadDelay 1000000) >> client handle pool
         (game:_) -> do

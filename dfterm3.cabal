@@ -18,6 +18,7 @@ executable dfterm3
   hs-source-dirs:      src
   ghc-options:         -Wall -threaded -fno-warn-name-shadowing
   main-is:             Main.hs
+  -- So many libraries. How we keep track of them all?
   build-depends:       base ==4.6.*
                       ,websockets ==0.7.*
                       ,hslogger ==1.2.*
@@ -34,6 +35,7 @@ executable dfterm3
                       ,stm ==2.4.*
                       ,bytestring ==0.10.*
                       ,binary ==0.7.*
-
-
+                      ,cereal ==0.3.*
+                      ,type-level ==0.2.*
+                      ,protobuf ==0.1.*
 
