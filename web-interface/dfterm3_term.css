@@ -1,5 +1,15 @@
+@font-face {
+    font-family: 'Cootue';
+    src: url('cootue_curses_square_16x16.ttf');
+}
+
 .dfterm3_terminal {
-    font-family: monospace;
+    font-family: 'Cootue';
+    background: #000;
+    word-spacing: 0px;
+    margin: 0px;
+    padding: 0px;
+    line-height: 1.0;
 }
 
 .fblack { color: #000; }
