@@ -41,8 +41,8 @@ dfterm3_terminal = function() {
     cp437_table[31] = 0x25bc;
     cp437_table[32] = 0x00a0;   // non-breaking space prevents spans from
                                 // becoming empty and messing up the terminal
-    // values between 32-127 are the same as ASCII
-    cp437_table[127] = 0xfffd;
+    // values between 32-126 are the same as ASCII
+    cp437_table[127] = 0x2302;
     cp437_table[128] = 0x00c7;
     cp437_table[129] = 0x00fc;
     cp437_table[130] = 0x00e9;
