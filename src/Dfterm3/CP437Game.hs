@@ -102,10 +102,14 @@ colorToInt Default = 16
 {-# INLINE colorToInt #-}
 
 -- | Represents what is inside one cell in a CP437 game.
-data CP437Cell = CP437Cell {-# UNPACK #-} !CP437Code  -- ^ The characte code.
-                           !ANSIColor  -- ^ Foreground.
-                           !ANSIColor  -- ^ Background.
-                 deriving ( Eq, Show, Ord, Read, Typeable )
+--
+-- The first color is the foregrond color and the latter is the background
+-- color.
+data CP437Cell = CP437Cell
+    {-# UNPACK #-} !CP437Code
+    !ANSIColor
+    !ANSIColor
+    deriving ( Eq, Show, Ord, Read, Typeable )
 
 -- | This data type is a game whose output can be wholly represented by a bunch
 -- of CP437 encoded characters, with foregrounds and backgrounds.
@@ -190,7 +194,7 @@ findCP437Changes     (_cp437Array -> old_arr)
 
     tuckBounds' = tuckBounds left top
 
--- Normalizes bounds so that origin is always at (0, 0)
+-- | Normalizes bounds in CP437 changesets so that origin is always at (0, 0)
 tuckBounds :: Int      -- ^ Leftmost x-coordinate.
            -> Int      -- ^ Topmost y-coordinate.
            -> [((Int, Int), CP437Cell)] -> [((Int, Int), CP437Cell)]
