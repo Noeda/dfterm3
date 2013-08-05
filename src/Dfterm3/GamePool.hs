@@ -24,7 +24,21 @@ module Dfterm3.GamePool
     -- ** Game clients
     , playGame
     , receiveGameUpdates
-    , GameMessage(..) )
+    , GameMessage(..)
+    -- * Morphers
+    --
+    -- | Or transformers. I'm unsure of the terminology. Anyway, these can take
+    -- a `GameProvider` or a `GameClient` and transform them into having
+    -- different type arguments.
+    --
+    -- Do note that with `morphClient` and `morphProvider` you can't actually
+    -- change the type of what is transmitted between providers and clients.
+    -- You will notice that the type system does not let you if you try. This
+    -- is because, in the end, the morphisms must map their inputs to the
+    -- original input type and outputs originate from the original output type.
+    --
+    , morphClient
+    , morphProvider )
     where
 
 import Data.IORef
@@ -33,7 +47,7 @@ import Data.Dynamic
 import Control.Concurrent.MVar
 import Control.Concurrent.STM
 import Control.Lens hiding ( indices )
-import Control.Applicative ( (<$>) )
+import Control.Applicative ( (<$>), (<*>) )
 import Control.Monad.State hiding ( forM_ )
 import qualified Data.Map.Lazy as M
 
@@ -65,12 +79,25 @@ data GameInstance a b c = GameInstance
     , unregisterer :: IO () }
     deriving ( Typeable )
 
-newtype GameProvider a b c = GameProvider (GameInstance a b c)
-                             deriving ( Typeable )
-newtype GameClient a b c = GameClient (TChan (GameMessage a c))
-                           deriving ( Typeable )
+-- Because TChans can't be transformed directly, we have to keep around mapping
+-- functions.
 
-makeLenses ''GamePoolI
+data GameProvider a b c =
+    forall a' b' c' . Game a' b' c' => GameProvider
+        !(GameInstance a' b' c')
+        !(a -> IO a')
+        !(b' -> IO b)
+        !(c -> IO c')
+    deriving ( Typeable )
+
+
+data GameClient a b c =
+    forall a' b' c' . Game a' b' c' => GameClient
+        !(TChan (GameMessage a' c'))
+        !(a' -> IO a)
+        !(b -> IO b')
+        !(c' -> IO c)
+    deriving ( Typeable )
 
 ---------------------------------------
 -- The public interface (mostly)
@@ -93,7 +120,9 @@ makeLenses ''GamePoolI
 --           v v v
 --      Game a b c
 -- @
-class (Typeable a, Typeable b, Typeable c) => Game a b c | a -> b c where
+class (Typeable a, Typeable b, Typeable c) => Game a b c | a -> b c
+
+makeLenses ''GamePoolI
 
 -- | Creates a new game pool.
 newGamePool :: IO GamePool
@@ -125,7 +154,10 @@ registerGame pool = do
               then M.adjust (M.insert gid dyn_inst) typ old_games
               else M.insert typ (M.singleton gid dyn_inst) old_games
 
-        return (GameProvider inst, inst)
+        return ( GameProvider inst (fmap return id)
+                                   (fmap return id)
+                                   (fmap return id)
+               , inst )
   where
     unregisterMyself gone_ref sender_chan typ gid = do
         flip withGamePool pool $
@@ -154,11 +186,13 @@ updateGame :: a                     -- ^ The new game state. This is used when
                                     -- know about every change.
            -> GameProvider a b c
            -> IO ()
-updateGame new_state changes (GameProvider inst) = do
+updateGame new_state changes (GameProvider inst amorph _ cmorph) = do
     is_gone <- readIORef (gone inst)
-    unless is_gone $
+    unless is_gone $ do
+        morphed_new_state <- amorph new_state
+        morphed_changes <- cmorph changes
         atomically $ writeTChan (writeOutput inst)
-                                (Message new_state changes)
+                                (Message morphed_new_state morphed_changes)
 
 -- | Checks if there are any updates on some game.
 --
@@ -166,8 +200,12 @@ updateGame new_state changes (GameProvider inst) = do
 -- then it is no longer guaranteed any messages will arrive (which would make
 -- you block forever if you called this again).
 receiveGameUpdates :: GameClient a b c -> IO (GameMessage a c)
-receiveGameUpdates (GameClient chan) =
-    atomically $ readTChan chan
+receiveGameUpdates (GameClient chan amorph _ cmorph) = do
+    msg <- atomically $ readTChan chan
+    case msg of
+        Message x y ->
+            Message <$> amorph x <*> cmorph y
+        GameUnregistered -> return GameUnregistered
 
 -- | Returns a list of all games of given type that are currently running.
 enumerateGames :: forall a b c. Game a b c
@@ -186,13 +224,17 @@ enumerateGames = withGamePool $ do
 -- (maybe) play.
 --
 -- You get `Nothing` if the game was not active.
-playGame :: GameInstance a b c -> IO (Maybe (GameClient a b c))
+playGame :: Game a b c
+         => GameInstance a b c
+         -> IO (Maybe (GameClient a b c))
 playGame inst = do
     my_tchan <- atomically $ dupTChan (writeOutput inst)
     is_gone <- readIORef (gone inst)
     return $ if is_gone
       then Nothing
-      else Just $ GameClient my_tchan
+      else Just $ GameClient my_tchan fmapreturnid fmapreturnid fmapreturnid
+  where
+    fmapreturnid = fmap return id
 
 -- Internal functions
 
@@ -211,4 +253,34 @@ withGamePool state (GamePool mvar) =
     modifyMVar mvar $ \old -> do
         (result, new_state) <- runStateT state old
         return (new_state, result)
+
+-- | Morphs a client so you can trick something into thinking this is a
+-- client of some other type.
+morphClient :: Game a' b' c'
+            => (a -> IO a')
+            -> (b' -> IO b)
+            -> (c -> IO c')
+            -> GameClient a b c
+            -> GameClient a' b' c'
+morphClient a_to_a' b'_to_b c_to_c' (GameClient chan a_morph b_morph c_morph) =
+    GameClient chan
+               (a_morph >=> a_to_a')
+               (b'_to_b >=> b_morph)
+               (c_morph >=> c_to_c')
+
+-- | Morphs a provider so you can trick something into thinking this is a
+-- provider of some other type.
+morphProvider :: Game a' b' c'
+              => (a' -> IO a)
+              -> (b -> IO b')
+              -> (c' -> IO c)
+              -> GameProvider a b c
+              -> GameProvider a' b' c'
+morphProvider a'_to_a b_to_b' c'_to_c
+              (GameProvider inst a_morph b_morph c_morph) =
+    GameProvider inst
+                 (a'_to_a >=> a_morph)
+                 (b_morph >=> b_to_b')
+                 (c'_to_c >=> c_morph)
+
 
