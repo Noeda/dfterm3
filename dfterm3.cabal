@@ -41,5 +41,9 @@ executable dfterm3
                       ,protobuf ==0.1.*
                       ,directory ==1.2.*
                       ,daemons ==0.1.*
+                      ,acid-state ==0.11.*
+                      ,safecopy ==0.8.*
+                      ,unix ==2.6.*
+                      ,scrypt ==0.3.*
 
 

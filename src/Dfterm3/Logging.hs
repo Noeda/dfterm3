@@ -7,6 +7,7 @@
 module Dfterm3.Logging
     ( initializeLogging
     , logInfo
+    , logNotice
     , LoggingSystem(..) )
     where
 
@@ -65,4 +66,10 @@ logInfo :: String -> IO ()
 logInfo msg = do
     res <- stamp msg
     infoM rootLoggerName res
+
+-- | Something unusual happened but nothing that indicates an error or warning.
+logNotice :: String -> IO ()
+logNotice msg = do
+    res <- stamp msg
+    noticeM rootLoggerName res
 

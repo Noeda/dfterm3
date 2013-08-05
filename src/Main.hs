@@ -8,11 +8,14 @@ import qualified Dfterm3.WebsocketAccepter as WS
 import Dfterm3.Logging
 import Dfterm3.GamePool
 import Dfterm3.DwarfFortress
+import qualified Dfterm3.User as U
 
 import Data.Typeable
 import Data.Word
+import qualified Data.Text.Encoding as T
+import qualified Data.Text as T
 
-import Control.Monad ( forM_ )
+import Control.Monad ( forM_, when )
 
 import System.Console.GetOpt
 import System.Exit
@@ -20,6 +23,7 @@ import System.Environment
 import System.IO
 
 import System.Posix.Daemon
+import System.Posix.Files
 
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
 import Network ( withSocketsDo )
@@ -30,6 +34,7 @@ data StartupOption = Websocket !Word16
                    | ShowHelp
                    | StorageLocation FilePath
                    | Daemonize (Maybe FilePath)
+                   | SetAdminPassword
                    | UseSyslog
                    deriving ( Eq, Ord, Show, Read, Typeable )
 
@@ -48,7 +53,10 @@ options = [ Option "w" ["websocket"]
             "run as a daemon (background process)."
           , Option [] ["syslog"]
             (NoArg UseSyslog)
-            "use syslog for logging." ]
+            "use syslog for logging."
+          , Option [] ["admin-password"]
+            (NoArg SetAdminPassword)
+            "ask for the administrator password and exit." ]
 
 isStorageOption :: StartupOption -> Bool
 isStorageOption (StorageLocation _) = True
@@ -60,6 +68,7 @@ isDaemonizeOption _ = False
 
 main :: IO ()
 main = do
+    void $ setFileCreationMask 0o077
     args <- getArgs
     case getOpt Permute options args of
         (options, [], []) -> run options
@@ -87,7 +96,12 @@ run options
             stderr
             "Only one or zero daemonizing options must be specified."
         exitFailure
-    | any isDaemonizeOption options = do
+    | should_daemonize && should_set_admin_password = do
+        hPutStrLn
+            stderr
+            "Cannot daemonize and set administrator password at the same time."
+        exitFailure
+    | should_daemonize = do
         let Daemonize maybe_filepath = head $ filter isDaemonizeOption options
         runDetached maybe_filepath
                     DevNull
@@ -97,6 +111,8 @@ run options
     pool <- newGamePool
     run' pool
   where
+    should_daemonize = any isDaemonizeOption options
+    should_set_admin_password = SetAdminPassword `elem` options
     use_syslog = UseSyslog `elem` options
 
     specified_storage =
@@ -120,7 +136,12 @@ run options
         storage_directory <- specified_storage
 
         logInfo $ "Using " ++ show capabilities ++ " operating system threads."
-        logInfo $ "Using \'" ++ storage_directory ++ "\' as storage directory."
+
+        system <- U.openStorage storage_directory
+
+        when should_set_admin_password $ do
+            setAdminPassword system
+            exitSuccess
 
         -- Start the websocket services
         forM_ options $ applyOption
@@ -147,5 +168,31 @@ showHelp = do
     putStrLn $ "If you don't specify the pidfile in any of the daemon options,\
                \ then no pidfile lock will be used."
     putStrLn $ "If --syslog is not specified, then logging will written to \
-               \standard output."
+               \standard output.\n"
+    putStrLn $ "By default, there is no administrator password. If you want \
+               \to use the administrator interface, you need to set it at \
+               \least once. You can also clear the administrator password \
+               \with this command if you want to disable the administrator \
+               \interface."
+
+setAdminPassword :: U.UserSystem -> IO ()
+setAdminPassword us = do
+    putStr "New password: "
+    hFlush stdout
+    old_echo <- hGetEcho stdin
+    hSetEcho stdin False
+    line <- hGetLine stdin
+    hSetEcho stdin old_echo
+    putStrLn ""
+    if null line
+      then do putStrLn "Disable administrator? (y/n)"
+              disabling <- hGetLine stdin
+              case disabling of
+                  "y"   -> U.setAdminPassword Nothing us
+                  "yes" -> U.setAdminPassword Nothing us
+                  _ -> putStrLn "Doing nothing."
+      else U.setAdminPassword (Just . T.encodeUtf8 . T.pack $ line) us
+
+
+
 
