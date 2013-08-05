@@ -30,6 +30,7 @@ data StartupOption = Websocket !Word16
                    | ShowHelp
                    | StorageLocation FilePath
                    | Daemonize (Maybe FilePath)
+                   | UseSyslog
                    deriving ( Eq, Ord, Show, Read, Typeable )
 
 options :: [OptDescr StartupOption]
@@ -44,7 +45,10 @@ options = [ Option "w" ["websocket"]
             "show valid command line options and exit."
           , Option "d" ["daemon", "daemonize"]
             (OptArg Daemonize "PIDFILE")
-            "run as a daemon (background process)." ]
+            "run as a daemon (background process)."
+          , Option [] ["syslog"]
+            (NoArg UseSyslog)
+            "use syslog for logging." ]
 
 isStorageOption :: StartupOption -> Bool
 isStorageOption (StorageLocation _) = True
@@ -93,6 +97,8 @@ run options
     pool <- newGamePool
     run' pool
   where
+    use_syslog = UseSyslog `elem` options
+
     specified_storage =
         case filter isStorageOption options of
             [] -> defaultStorageDirectory
@@ -100,7 +106,10 @@ run options
             _ -> undefined
 
     run' pool = do
-        initializeLogging
+        if use_syslog
+          then initializeLogging Syslog
+          else initializeLogging Simple
+
         logInfo "Dfterm3 starting up."
 
         -- Make sure we get to use all the cores. The unfortunate side effect
@@ -137,4 +146,6 @@ showHelp = do
                "Specifying the --storage option overrides the default setting."
     putStrLn $ "If you don't specify the pidfile in any of the daemon options,\
                \ then no pidfile lock will be used."
+    putStrLn $ "If --syslog is not specified, then logging will written to \
+               \standard output."
 
