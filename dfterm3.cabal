@@ -40,5 +40,6 @@ executable dfterm3
                       ,type-level ==0.2.*
                       ,protobuf ==0.1.*
                       ,directory ==1.2.*
+                      ,daemons ==0.1.*
 
 

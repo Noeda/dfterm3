@@ -19,6 +19,8 @@ import System.Exit
 import System.Environment
 import System.IO
 
+import System.Posix.Daemon
+
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
 import Network ( withSocketsDo )
 import Control.Concurrent ( threadDelay )
@@ -27,6 +29,7 @@ import Control.Monad ( forever, void )
 data StartupOption = Websocket !Word16
                    | ShowHelp
                    | StorageLocation FilePath
+                   | Daemonize (Maybe FilePath)
                    deriving ( Eq, Ord, Show, Read, Typeable )
 
 options :: [OptDescr StartupOption]
@@ -38,11 +41,18 @@ options = [ Option "w" ["websocket"]
             "specify which directory to use to store runtime data."
           , Option "h?" ["help"]
             (NoArg ShowHelp)
-            "show valid command line options and exit." ]
+            "show valid command line options and exit."
+          , Option "d" ["daemon", "daemonize"]
+            (OptArg Daemonize "PIDFILE")
+            "run as a daemon (background process)." ]
 
 isStorageOption :: StartupOption -> Bool
 isStorageOption (StorageLocation _) = True
 isStorageOption _ = False
+
+isDaemonizeOption :: StartupOption -> Bool
+isDaemonizeOption (Daemonize _) = True
+isDaemonizeOption _ = False
 
 main :: IO ()
 main = do
@@ -68,6 +78,17 @@ run options
             stderr
             "Only one or zero storage location directories must be specified."
         exitFailure
+    | length (filter isDaemonizeOption options) > 1 = do
+        hPutStrLn
+            stderr
+            "Only one or zero daemonizing options must be specified."
+        exitFailure
+    | any isDaemonizeOption options = do
+        let Daemonize maybe_filepath = head $ filter isDaemonizeOption options
+        runDetached maybe_filepath
+                    DevNull
+                    (run (filter (not . isDaemonizeOption) options))
+        exitSuccess
     | otherwise = withSocketsDo $ do
     pool <- newGamePool
     run' pool
@@ -114,4 +135,6 @@ showHelp = do
                dir ++
                "\'. " ++
                "Specifying the --storage option overrides the default setting."
+    putStrLn $ "If you don't specify the pidfile in any of the daemon options,\
+               \ then no pidfile lock will be used."
 
