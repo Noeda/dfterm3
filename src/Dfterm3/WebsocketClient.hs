@@ -83,6 +83,7 @@ serializeCellChange ((x, y), CP437Cell code fcolor bcolor) = do
 encodeStateToBinary :: CP437Game -> B.ByteString
 encodeStateToBinary game =
     BL.toStrict $ runPut $ do
+        putWord8 1
         putWord16be (fromIntegral w)
         putWord16be (fromIntegral h)
         putWord32be (fromIntegral $ w*h)
@@ -96,6 +97,7 @@ encodeStateToBinary game =
 encodeChangesToBinary :: CP437Changes -> B.ByteString
 encodeChangesToBinary (w, h, cell_changes) =
     BL.toStrict $ runPut $ do
+        putWord8 1
         putWord16be (fromIntegral w)
         putWord16be (fromIntegral h)
         putWord32be (fromIntegral num_changes)
