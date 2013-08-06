@@ -3,13 +3,41 @@
     src: url('cootue_curses_square_16x16.ttf');
 }
 
+#myterm {
+}
+
 .dfterm3_terminal {
     font-family: 'Cootue';
-    background: #000;
     word-spacing: 0px;
     margin: 0px;
     padding: 0px;
     line-height: 1.0;
+
+    display: inline-block;
+}
+
+.dfterm3_terminal_title_bar {
+    font-family: 'Cootue';
+    background: #eee;
+    padding: 10px;
+    line-height: 2.5;
+    box-shadow: 5px 5px;
+}
+
+.dfterm3_connection_status_element_good {
+    background: #eee;
+    color: #5a5;
+    font-weight: bold;
+    padding: 20px;
+    border: 2px solid #000;
+}
+
+.dfterm3_connection_status_element_bad {
+    background: #eee;
+    font-weight: bold;
+    color: #a55;
+    padding: 20px;
+    border: 2px solid #000;
 }
 
 .fblack { color: #000; }
