@@ -1,0 +1,61 @@
+@import url("dfterm3_term.css");
+
+body {
+    background: url('background.jpg');
+}
+
+.cover {
+    opacity: 0.5;
+    background: #fff;
+    padding: 100%;
+    position: fixed;
+    left: 0px;
+    top: 0px;
+}
+
+.dfterm3_connection_status_element_good {
+    background: #eee;
+    color: #5a5;
+    font-weight: bold;
+    padding: 20px;
+    border: 2px solid #000;
+    position: fixed;
+    right: 10px;
+    top: 10px;
+}
+
+.dfterm3_connection_status_element_bad {
+    background: #eee;
+    font-weight: bold;
+    color: #a55;
+    padding: 20px;
+    border: 2px solid #000;
+    position: fixed;
+    right: 10px;
+    top: 10px;
+}
+
+.auth_part {
+}
+
+.auth_part form {
+    background: #ddd;
+    border: 1px solid;
+    padding: 20px;
+    position: absolute;
+    height: 150px;
+    width: 400px;
+    left: 50%;
+    top: 50%;
+    margin-top: -75px;
+    margin-left: -200px;
+    box-shadow: 5px 5px;
+}
+
+#admin_submit_button {
+    text-align: center;
+}
+
+#admin_submit_button input {
+}
+

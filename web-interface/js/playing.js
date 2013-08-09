@@ -1,4 +1,5 @@
 dfterm3_playing = function() {
+    // imports
     var do_after = dfterm3_timings.do_after;
     var seconds = dfterm3_timings.seconds;
     var fade_out = dfterm3_timings.fade_out;
@@ -38,6 +39,17 @@ dfterm3_playing = function() {
                                                               // comes after it
         var status_element = document.createElement("span");
 
+        var cover = document.createElement("div");
+        cover.setAttribute("class", "cover");
+
+        var showCover = function() {
+            cover.style.display = "block";
+        }
+        var hideCover = function() {
+            cover.style.display = "none";
+        }
+
+        host_dom_element.appendChild( cover );
         host_dom_element.appendChild( terminal_dom_element );
 
         status_element.textContent =
@@ -128,12 +140,17 @@ dfterm3_playing = function() {
             }
         }
 
+        startTerminal( 80, 24 );
+        showCover();
+
         var socket = new WebSocket( host );
         socket.onopen = function() {
             status("Connection established.", false );
+            hideCover();
         }
         socket.onclose = function() {
             status("No connection to server.", true );
+            showCover();
         }
         socket.onmessage = function(event) {
             var reader = new FileReader();
