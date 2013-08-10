@@ -12,12 +12,16 @@ module Dfterm3.User.Types
     ( UserSystem(..)
     , UserSystemState(..)
     , Admin(..)
+    , AddingResult(..)
     , validUntil
     , sessionID
     , first
+    , dwarfFortresses
     , adminSessions
     , adminPassword )
     where
+
+import Dfterm3.DwarfFortress
 
 import Data.Acid
 import Data.Typeable ( Typeable )
@@ -29,6 +33,8 @@ import qualified Data.ByteString as B
 import qualified Data.Map as M
 
 data UserSystemState = UserSystemState { _first :: Bool
+                                       , _dwarfFortresses ::
+                                           M.Map String DwarfFortress
                                        , _adminSessions ::
                                            M.Map B.ByteString Admin
                                        , _adminPassword ::
@@ -38,14 +44,19 @@ data Admin = Admin { _validUntil :: !UTCTime
                    , _sessionID :: !B.ByteString }
                    deriving ( Eq, Ord )
 
+data AddingResult = New | Replaced
+
 deriving instance Typeable EncryptedPass
 deriving instance Typeable Admin
+deriving instance Typeable AddingResult
 
 makeLenses ''UserSystemState
 makeLenses ''Admin
 deriveSafeCopy 0 'base ''EncryptedPass
 deriveSafeCopy 0 'base ''UserSystemState
 deriveSafeCopy 0 'base ''Admin
+deriveSafeCopy 0 'base ''DwarfFortress
+deriveSafeCopy 0 'base ''AddingResult
 
 newtype UserSystem = UserSystem (AcidState UserSystemState)
 

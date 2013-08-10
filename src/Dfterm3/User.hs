@@ -11,9 +11,14 @@ module Dfterm3.User
     , setAdminPassword
     , adminSessionID
     , periodicallyCleanStaleAdminHandles
+    , registerDwarfFortress
+    , listDwarfFortresses
+    , AddingResult(..)
     , UserSystem()
     , Dfterm3.User.Types.Admin() )
     where
+
+import Dfterm3.DwarfFortress
 
 import Dfterm3.User.Types
 import Dfterm3.Logging
@@ -50,12 +55,30 @@ cleanStaleAdminSessions :: UTCTime -> Update UserSystemState ()
 cleanStaleAdminSessions now = do
     adminSessions %= M.filter (\x -> x^.validUntil >= now)
 
+registerNewDwarfFortress :: DwarfFortress
+                         -> Update UserSystemState AddingResult
+registerNewDwarfFortress df = do
+    old_df <- M.lookup exec <$> use dwarfFortresses
+    case old_df of
+        Nothing -> do dwarfFortresses %= M.insert exec df
+                      return New
+        Just _  -> do dwarfFortresses %= M.insert exec df
+                      return Replaced
+  where
+    exec = df^.dfExecutable
+
+listAllDwarfFortresses :: Query UserSystemState [DwarfFortress]
+listAllDwarfFortresses = M.elems <$> view dwarfFortresses
+
 makeAcidic ''UserSystemState [ 'wasThisFirst, 'getEncryptedAdminPassword
                              , 'setEncryptedAdminPassword, 'addAdminSession
-                             , 'cleanStaleAdminSessions ]
+                             , 'cleanStaleAdminSessions
+                             , 'registerNewDwarfFortress
+                             , 'listAllDwarfFortresses ]
 
 emptyUserSystem :: UserSystemState
 emptyUserSystem = UserSystemState { _first = True
+                                  , _dwarfFortresses = M.empty
                                   , _adminPassword = Nothing
                                   , _adminSessions = M.empty }
 
@@ -149,4 +172,27 @@ makeSessionID = do
     session_id <- randBytes 33   -- I made up this number all by myself
     return session_id
 
+-- | Registers a Dwarf Fortress to the user system.
+--
+-- Replaces an old Dwarf Fortress if the executable is the same as some other
+-- Dwarf Fortress added earlier. (That is, Dwarf Fortresses are indexed by
+-- their executable path.)
+registerDwarfFortress :: FilePath  -- ^ Path to the Dwarf Fortress executable.
+                      -> [String]  -- ^ Command line arguments to the Dwarf
+                                   -- Fortress. You don't need to supply the
+                                   -- first argument that is the program name
+                                   -- as that will be done for you.
+                      -> FilePath  -- ^ Working directory for Dwarf Fortres.
+                      -> UserSystem
+                      -> IO AddingResult
+registerDwarfFortress executable args working_directory (UserSystem st) = do
+    executable' <- canonicalizePath executable
+    working_directory' <- canonicalizePath working_directory
+    update st $ RegisterNewDwarfFortress $
+        DwarfFortress executable' args working_directory'
+
+-- | Returns all registered Dwarf Fortresses in the system.
+listDwarfFortresses :: UserSystem -> IO [DwarfFortress]
+listDwarfFortresses (UserSystem st) = do
+    query st $ ListAllDwarfFortresses
 

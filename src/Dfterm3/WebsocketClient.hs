@@ -8,6 +8,7 @@ module Dfterm3.WebsocketClient
 
 import Dfterm3.GamePool
 import Dfterm3.CP437Game
+import Dfterm3.DwarfFortress
 
 import System.IO
 import Network.WebSockets
@@ -41,14 +42,17 @@ client :: Handle -> GamePool -> WebSockets DftermProto ()
 client handle pool = do
     -- Just pick the first game available
     games <- liftIO (enumerateGames pool ::
-                     IO [GameInstance CP437Game () CP437Changes])
+                     IO [GameInstance DwarfFortressCP437 () CP437Changes])
     case games of
         [] -> liftIO (threadDelay 1000000) >> client handle pool
-        (game:_) -> do
-            maybe_client <- liftIO $ playGame game
+        (first_game:_) -> do
+            maybe_client <- liftIO $ playGame first_game
             case maybe_client of
                 Nothing -> client handle pool
-                Just client -> gameLoop client True
+                Just client -> gameLoop (morphClient (return . game)
+                                                     (return . id)
+                                                     (return . id) client)
+                                        True
   where
     gameLoop :: GameClient CP437Game () CP437Changes
              -> Bool

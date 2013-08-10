@@ -1,10 +1,17 @@
 -- | This module talks to Dfhack to get Dwarf Fortress games into Dfterm3.
 
-{-# LANGUAGE Rank2Types, DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE Rank2Types, DeriveDataTypeable, FlexibleInstances #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings, TypeSynonymInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, TemplateHaskell #-}
 
 module Dfterm3.DwarfFortress
-    ( monitorDwarfFortresses )
+    ( monitorDwarfFortresses
+    , DwarfFortress(..)
+    , DwarfFortressCP437()
+    , game, df
+    , dfExecutable
+    , dfArgs
+    , dfWorkingDirectory )
     where
 
 import Dfterm3.GamePool
@@ -18,6 +25,7 @@ import System.Random
 
 import Data.Word ( Word8, Word16, Word32, Word64 )
 import Foreign.Storable ( sizeOf )
+import Control.Lens
 import Data.Typeable
 import Data.Foldable
 import Data.ProtocolBuffers
@@ -39,6 +47,18 @@ data SilentlyDie = SilentlyDie
                    deriving ( Eq, Show, Typeable )
 
 instance Exception SilentlyDie
+
+data DwarfFortress = DwarfFortress { _dfExecutable :: FilePath
+                                   , _dfArgs :: [String]
+                                   , _dfWorkingDirectory :: FilePath }
+                     deriving ( Eq, Ord, Show, Read, Typeable )
+makeLenses ''DwarfFortress
+
+-- | A wrapping around `CP437Game` so that DwarfFortress has unique type in a
+-- `GamePool`.
+data DwarfFortressCP437 = DwarfFortressCP437 { game :: CP437Game
+                                             , df :: DwarfFortress }
+                          deriving ( Typeable )
 
 ports :: [Word16]
 ports = [48000..48100]
@@ -88,18 +108,19 @@ portChecker' pool port = catch (do
 -- plugins/proto/dfterm3.proto in the dfhack repository.
 
 data Introduction = Introduction
-    { dfVersion :: Optional D1 (Value T.Text)
-    , path       :: Optional D2 (Value T.Text)
-    , pid        :: Optional D3 (Value Word64) }
+    { dfVersion        :: Optional D1 (Value T.Text)
+    , workingDirectory :: Optional D2 (Value T.Text)
+    , executable       :: Optional D3 (Value T.Text)
+    , pid              :: Optional D4 (Value Word64) }
     deriving ( Generic, Show )
 
 instance Decode Introduction
 
 data ScreenData = ScreenData
-    { width :: Optional D4 (Value Word32)
-    , height :: Optional D5 (Value Word32)
-    , screenCP437 :: Optional D6 (Value B.ByteString)
-    , colors :: Optional D7 (Value B.ByteString) }
+    { width :: Optional D5 (Value Word32)
+    , height :: Optional D6 (Value Word32)
+    , screenCP437 :: Optional D7 (Value B.ByteString)
+    , colors :: Optional D8 (Value B.ByteString) }
     deriving ( Generic, Show )
 
 instance Decode ScreenData
@@ -129,11 +150,17 @@ hSendByteString handle bytestring = do
     B.hPut handle bytestring
     hFlush handle
 
+instance Game DwarfFortressCP437 () CP437Changes
+
 dfhackConnection :: GamePool -> Handle -> IO ()
 dfhackConnection pool handle = do
-    msg <- hGetMessage handle :: IO Introduction
-    let Just version = getField $ dfVersion msg
-        Just working_dir = getField (path msg)
+    info <- hGetMessage handle :: IO Introduction
+    let Just version = getField $ dfVersion info
+        Just working_dir = getField $ workingDirectory info
+        Just df_executable = getField $ executable info
+        df_info = DwarfFortress (T.unpack df_executable)
+                                []
+                                (T.unpack working_dir)
     -- Not interested in pid for the moment
     -- maybe_pid <- getField $ pid msg
 
@@ -145,13 +172,16 @@ dfhackConnection pool handle = do
 
     logInfo "Successfully formed a connection to a Dfhack \
             \Dfterm3 plugin."
-    ( provider, _) <- registerGame pool
+    ( provider , _) <- registerGame pool
 
     let title = "Dwarf Fortress " `T.append` version
 
-    rec title provider emptyCP437Changes msg
+    rec title (provider :: GameProvider DwarfFortressCP437 () CP437Changes)
+              emptyCP437Changes
+              df_info
+              msg
   where
-    rec title provider changer msg = do
+    rec title provider changer df_info msg = do
         let Just cp437Data = getField $ screenCP437 msg
             Just colorsData = getField $ colors msg
             Just w = getField $ width msg
@@ -171,9 +201,12 @@ dfhackConnection pool handle = do
                                   , (fromIntegral w-1, fromIntegral h-1) )
                                   (zip assocs $ zipWith cp437nator chars clrs)
 
-        updateGame cp437game (changer cp437game) provider
+        updateGame (DwarfFortressCP437 cp437game df_info)
+                   (changer cp437game)
+                   provider
 
-        rec title provider (findCP437Changes cp437game) =<< hGetMessage handle
+        rec title provider (findCP437Changes cp437game) df_info
+            =<< hGetMessage handle
 
 cp437nator :: Word8 -> Word8 -> CP437Cell
 cp437nator character_code colors =
