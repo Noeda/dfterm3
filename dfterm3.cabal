@@ -45,5 +45,9 @@ executable dfterm3
                       ,safecopy ==0.8.*
                       ,unix ==2.6.*
                       ,scrypt ==0.3.*
+                      ,HsOpenSSL ==0.10.*
+                      ,utf8-string ==0.3.*
+                      ,base64-bytestring ==1.0.*
+                      ,happstack-server ==7.3.*
 
 

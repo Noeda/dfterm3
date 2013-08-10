@@ -12,7 +12,10 @@ module Dfterm3.User.Types
     ( UserSystem(..)
     , UserSystemState(..)
     , Admin(..)
+    , validUntil
+    , sessionID
     , first
+    , adminSessions
     , adminPassword )
     where
 
@@ -20,20 +23,29 @@ import Data.Acid
 import Data.Typeable ( Typeable )
 import Control.Lens
 import Data.SafeCopy
+import Data.Time.Clock
 import Crypto.Scrypt
+import qualified Data.ByteString as B
+import qualified Data.Map as M
 
 data UserSystemState = UserSystemState { _first :: Bool
+                                       , _adminSessions ::
+                                           M.Map B.ByteString Admin
                                        , _adminPassword ::
                                            Maybe EncryptedPass }
 
-data Admin = Admin
+data Admin = Admin { _validUntil :: !UTCTime
+                   , _sessionID :: !B.ByteString }
+                   deriving ( Eq, Ord )
 
 deriving instance Typeable EncryptedPass
+deriving instance Typeable Admin
 
 makeLenses ''UserSystemState
 makeLenses ''Admin
 deriveSafeCopy 0 'base ''EncryptedPass
 deriveSafeCopy 0 'base ''UserSystemState
+deriveSafeCopy 0 'base ''Admin
 
 newtype UserSystem = UserSystem (AcidState UserSystemState)
 

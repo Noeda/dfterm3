@@ -10,6 +10,10 @@ import Dfterm3.GamePool
 import Dfterm3.DwarfFortress
 import qualified Dfterm3.User as U
 
+import Dfterm3.AdminPanel
+
+import OpenSSL ( withOpenSSL )
+
 import Data.Typeable
 import Data.Word
 import qualified Data.Text.Encoding as T
@@ -27,10 +31,11 @@ import System.Posix.Files
 
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
 import Network ( withSocketsDo )
-import Control.Concurrent ( threadDelay )
+import Control.Concurrent ( threadDelay, forkIO )
 import Control.Monad ( forever, void )
 
 data StartupOption = Websocket !Word16
+                   | AdminPanel !Word16
                    | ShowHelp
                    | StorageLocation FilePath
                    | Daemonize (Maybe FilePath)
@@ -56,7 +61,10 @@ options = [ Option "w" ["websocket"]
             "use syslog for logging."
           , Option [] ["admin-password"]
             (NoArg SetAdminPassword)
-            "ask for the administrator password and exit." ]
+            "ask for the administrator password and exit."
+          , Option [] ["admin-panel"]
+            (ReqArg (AdminPanel . read) "PORT")
+            "serve administrator panel as a web interface on this port." ]
 
 isStorageOption :: StartupOption -> Bool
 isStorageOption (StorageLocation _) = True
@@ -66,8 +74,12 @@ isDaemonizeOption :: StartupOption -> Bool
 isDaemonizeOption (Daemonize _) = True
 isDaemonizeOption _ = False
 
+isAdminPanelOption :: StartupOption -> Bool
+isAdminPanelOption (AdminPanel _) = True
+isAdminPanelOption _ = False
+
 main :: IO ()
-main = do
+main = withOpenSSL $ do
     void $ setFileCreationMask 0o077
     args <- getArgs
     case getOpt Permute options args of
@@ -108,9 +120,12 @@ run options
                     (run (filter (not . isDaemonizeOption) options))
         exitSuccess
     | otherwise = withSocketsDo $ do
-    pool <- newGamePool
-    run' pool
+        pool <- newGamePool
+        run' pool (fmap unwrap . filter isAdminPanelOption $ options)
   where
+    unwrap (AdminPanel x) = x
+    unwrap _ = undefined
+
     should_daemonize = any isDaemonizeOption options
     should_set_admin_password = SetAdminPassword `elem` options
     use_syslog = UseSyslog `elem` options
@@ -121,7 +136,7 @@ run options
             [StorageLocation x] -> return x
             _ -> undefined
 
-    run' pool = do
+    run' pool admin_panels = do
         if use_syslog
           then initializeLogging Syslog
           else initializeLogging Simple
@@ -138,6 +153,7 @@ run options
         logInfo $ "Using " ++ show capabilities ++ " operating system threads."
 
         system <- U.openStorage storage_directory
+        void $ U.periodicallyCleanStaleAdminHandles system
 
         when should_set_admin_password $ do
             setAdminPassword system
@@ -145,6 +161,9 @@ run options
 
         -- Start the websocket services
         forM_ options $ applyOption
+
+        -- Start the admin panel
+        forM_ admin_panels $ forkIO . startAdminPanel system
 
         void $ monitorDwarfFortresses pool
 
@@ -173,7 +192,12 @@ showHelp = do
                \to use the administrator interface, you need to set it at \
                \least once. You can also clear the administrator password \
                \with this command if you want to disable the administrator \
-               \interface."
+               \interface.\n"
+    putStrLn $ "The administrator interface is served by listening on the \
+               \local network device 127.0.0.1. This has the implication that \
+               \it cannot be directly accessed from outside the local \
+               \computer.\n"
+
 
 setAdminPassword :: U.UserSystem -> IO ()
 setAdminPassword us = do
