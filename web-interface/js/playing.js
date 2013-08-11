@@ -161,7 +161,11 @@ dfterm3_playing = function() {
                 if ( array_view[0] == SCREEN_DATA ) {
                     handleScreenData( array );
                 } else if ( array_view[0] == JSON_DATA ) {
-                    // nothing yet.
+                    var reader2 = new FileReader();
+                    reader2.readAsText(event.data);
+                    reader2.onload = function() {
+                        console.log(reader2.result);
+                    }
                 }
             }
         }

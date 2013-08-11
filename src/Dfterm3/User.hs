@@ -9,16 +9,20 @@ module Dfterm3.User
     ( openStorage
     , openAdmin
     , setAdminPassword
+    , openAdminBySessionID
     , adminSessionID
     , periodicallyCleanStaleAdminHandles
     , registerDwarfFortress
+    , unregisterDwarfFortress
     , listDwarfFortresses
+    , expireAdmin
     , AddingResult(..)
     , UserSystem()
     , Dfterm3.User.Types.Admin() )
     where
 
-import Dfterm3.DwarfFortress
+import Dfterm3.Util ( whenJust )
+import Dfterm3.DwarfFortress.Types
 
 import Dfterm3.User.Types
 import Dfterm3.Logging
@@ -33,6 +37,7 @@ import Crypto.Scrypt
 import OpenSSL.Random ( randBytes )
 import Data.Time.Clock
 import qualified Data.ByteString as B
+import qualified Data.Text as T
 import qualified Data.Map as M
 
 wasThisFirst :: Update UserSystemState Bool
@@ -52,8 +57,11 @@ addAdminSession :: Admin -> Update UserSystemState ()
 addAdminSession admin = adminSessions %= M.insert (admin^.sessionID) admin
 
 cleanStaleAdminSessions :: UTCTime -> Update UserSystemState ()
-cleanStaleAdminSessions now = do
+cleanStaleAdminSessions now =
     adminSessions %= M.filter (\x -> x^.validUntil >= now)
+
+getAdminSessionByID :: B.ByteString -> Query UserSystemState (Maybe Admin)
+getAdminSessionByID session_id = M.lookup session_id <$> view adminSessions
 
 registerNewDwarfFortress :: DwarfFortress
                          -> Update UserSystemState AddingResult
@@ -67,14 +75,24 @@ registerNewDwarfFortress df = do
   where
     exec = df^.dfExecutable
 
+unregisterSomeDwarfFortress :: String -> Update UserSystemState ()
+unregisterSomeDwarfFortress executable = dwarfFortresses %= M.delete executable
+
 listAllDwarfFortresses :: Query UserSystemState [DwarfFortress]
 listAllDwarfFortresses = M.elems <$> view dwarfFortresses
+
+expireSomeAdmin :: Admin -> Update UserSystemState ()
+expireSomeAdmin (Admin _ session_id) =
+    adminSessions %= M.delete session_id
 
 makeAcidic ''UserSystemState [ 'wasThisFirst, 'getEncryptedAdminPassword
                              , 'setEncryptedAdminPassword, 'addAdminSession
                              , 'cleanStaleAdminSessions
                              , 'registerNewDwarfFortress
-                             , 'listAllDwarfFortresses ]
+                             , 'unregisterSomeDwarfFortress
+                             , 'listAllDwarfFortresses
+                             , 'getAdminSessionByID
+                             , 'expireSomeAdmin ]
 
 emptyUserSystem :: UserSystemState
 emptyUserSystem = UserSystemState { _first = True
@@ -111,10 +129,6 @@ periodicallyCleanStaleAdminHandles (UserSystem st) = forkIO $ forever $ do
     void $ update st $ CleanStaleAdminSessions now
     threadDelay 1800000000  -- 30 minutes
 
-whenJust :: Maybe a -> (a -> IO ()) -> IO ()
-whenJust Nothing _ = return ()
-whenJust (Just x) action = action x
-
 -- | Sets the administrator password to the UserSystem.
 --
 -- Make sure this cannot be called by anyone who is not supposed to.
@@ -146,12 +160,11 @@ openAdmin password expiry (UserSystem st) = do
     checkPass epass = do
         let ( succeeded, maybe_new_pass ) =
                 verifyPass defaultParams (Pass password) epass
-        case succeeded of
-            False -> return Nothing
-            True -> do
+        if succeeded
+          then do
                 session_id <- makeSessionID
                 now <- getCurrentTime
-                let admin = Admin { _validUntil = (fromIntegral expiry)
+                let admin = Admin { _validUntil = fromIntegral expiry
                                                   `addUTCTime`
                                                   now
                                   , _sessionID = session_id }
@@ -162,15 +175,32 @@ openAdmin password expiry (UserSystem st) = do
 
                 return $ Just admin
 
+          else return Nothing
+
 -- | Returns the session ID of an admin handle. This can be uniquely identify a
 -- handle.
 adminSessionID :: Admin -> B.ByteString
 adminSessionID = (^. sessionID)
 
+-- | Immediately expires an admin.
+expireAdmin :: Admin -> UserSystem -> IO ()
+expireAdmin admin (UserSystem st) = update st $ ExpireSomeAdmin admin
+
+-- | Returns an admin handle by its session ID, if the `Admin` is still
+-- available.
+openAdminBySessionID :: B.ByteString -> UserSystem -> IO (Maybe Admin)
+openAdminBySessionID session_id (UserSystem st) = do
+    maybe_admin <- query st $ GetAdminSessionByID session_id
+    now <- getCurrentTime
+    return $ case maybe_admin of
+                 Nothing -> Nothing
+                 Just admin ->
+                     if admin^.validUntil >= now
+                       then Just admin
+                       else Nothing
+
 makeSessionID :: IO B.ByteString
-makeSessionID = do
-    session_id <- randBytes 33   -- I made up this number all by myself
-    return session_id
+makeSessionID = randBytes 33   -- I made up this number all by myself
 
 -- | Registers a Dwarf Fortress to the user system.
 --
@@ -182,17 +212,24 @@ registerDwarfFortress :: FilePath  -- ^ Path to the Dwarf Fortress executable.
                                    -- Fortress. You don't need to supply the
                                    -- first argument that is the program name
                                    -- as that will be done for you.
-                      -> FilePath  -- ^ Working directory for Dwarf Fortres.
+                      -> FilePath  -- ^ Working directory for Dwarf Fortress.
+                      -> String    -- ^ Arbitrary name for the game.
                       -> UserSystem
                       -> IO AddingResult
-registerDwarfFortress executable args working_directory (UserSystem st) = do
-    executable' <- canonicalizePath executable
+registerDwarfFortress executable args working_directory name (UserSystem st) =
+ do executable' <- canonicalizePath executable
     working_directory' <- canonicalizePath working_directory
     update st $ RegisterNewDwarfFortress $
-        DwarfFortress executable' args working_directory'
+        DwarfFortress executable' args working_directory' (T.pack name)
+
+-- | Unregisters a Dwarf Fortress from the system. The given argument is the
+-- executable name of the Dwarf Fortress.
+unregisterDwarfFortress :: FilePath -> UserSystem -> IO ()
+unregisterDwarfFortress executable (UserSystem st) =
+    update st $ UnregisterSomeDwarfFortress executable
 
 -- | Returns all registered Dwarf Fortresses in the system.
 listDwarfFortresses :: UserSystem -> IO [DwarfFortress]
-listDwarfFortresses (UserSystem st) = do
-    query st $ ListAllDwarfFortresses
+listDwarfFortresses (UserSystem st) =
+    query st ListAllDwarfFortresses
 

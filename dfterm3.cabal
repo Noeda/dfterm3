@@ -49,5 +49,11 @@ executable dfterm3
                       ,utf8-string ==0.3.*
                       ,base64-bytestring ==1.0.*
                       ,happstack-server ==7.3.*
+                      ,aeson ==0.6.*
+                      ,vector ==0.10.*
+                      ,blaze-html ==0.6.*
+                      ,blaze-markup ==0.5.*
+                      ,filepath ==1.3.*
+
 
 

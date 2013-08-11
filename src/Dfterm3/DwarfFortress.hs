@@ -2,12 +2,11 @@
 
 {-# LANGUAGE Rank2Types, DeriveDataTypeable, FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric, OverloadedStrings, TypeSynonymInstances #-}
-{-# LANGUAGE MultiParamTypeClasses, TemplateHaskell #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Dfterm3.DwarfFortress
     ( monitorDwarfFortresses
     , DwarfFortress(..)
-    , DwarfFortressCP437()
     , game, df
     , dfExecutable
     , dfArgs
@@ -19,13 +18,14 @@ import Dfterm3.CP437Game
 import Dfterm3.Logging
 import Dfterm3.Safe
 
+import Dfterm3.DwarfFortress.Types
+
 import System.IO
 import System.IO.Error
 import System.Random
 
 import Data.Word ( Word8, Word16, Word32, Word64 )
 import Foreign.Storable ( sizeOf )
-import Control.Lens
 import Data.Typeable
 import Data.Foldable
 import Data.ProtocolBuffers
@@ -47,18 +47,6 @@ data SilentlyDie = SilentlyDie
                    deriving ( Eq, Show, Typeable )
 
 instance Exception SilentlyDie
-
-data DwarfFortress = DwarfFortress { _dfExecutable :: FilePath
-                                   , _dfArgs :: [String]
-                                   , _dfWorkingDirectory :: FilePath }
-                     deriving ( Eq, Ord, Show, Read, Typeable )
-makeLenses ''DwarfFortress
-
--- | A wrapping around `CP437Game` so that DwarfFortress has unique type in a
--- `GamePool`.
-data DwarfFortressCP437 = DwarfFortressCP437 { game :: CP437Game
-                                             , df :: DwarfFortress }
-                          deriving ( Typeable )
 
 ports :: [Word16]
 ports = [48000..48100]
@@ -150,8 +138,6 @@ hSendByteString handle bytestring = do
     B.hPut handle bytestring
     hFlush handle
 
-instance Game DwarfFortressCP437 () CP437Changes
-
 dfhackConnection :: GamePool -> Handle -> IO ()
 dfhackConnection pool handle = do
     info <- hGetMessage handle :: IO Introduction
@@ -161,6 +147,8 @@ dfhackConnection pool handle = do
         df_info = DwarfFortress (T.unpack df_executable)
                                 []
                                 (T.unpack working_dir)
+                                T.empty
+
     -- Not interested in pid for the moment
     -- maybe_pid <- getField $ pid msg
 
@@ -172,14 +160,19 @@ dfhackConnection pool handle = do
 
     logInfo "Successfully formed a connection to a Dfhack \
             \Dfterm3 plugin."
-    ( provider , _) <- registerGame pool
+    mask $ \restore -> do
+        ( provider, game_instance ) <- registerGame pool
 
-    let title = "Dwarf Fortress " `T.append` version
+        let title = "Dwarf Fortress " `T.append` version
 
-    rec title (provider :: GameProvider DwarfFortressCP437 () CP437Changes)
-              emptyCP437Changes
-              df_info
-              msg
+        finally
+            (restore $ rec title
+                 (provider
+                   :: GameProvider DwarfFortressCP437 () CP437Changes)
+                  emptyCP437Changes
+                  df_info
+                  msg)
+            (unregisterGame game_instance)
   where
     rec title provider changer df_info msg = do
         let Just cp437Data = getField $ screenCP437 msg

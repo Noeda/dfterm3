@@ -75,6 +75,7 @@ data GameMessage a b = GameUnregistered  -- ^ Game was unregistered from the
 data GameInstance a b c = GameInstance
     { writeOutput :: !(TChan (GameMessage a c))
     , receiveInput :: !(TChan b)
+    , lastKnownState :: IORef (Maybe a)
     , gone :: !(IORef Bool)
     , unregisterer :: IO () }
     deriving ( Typeable )
@@ -139,10 +140,12 @@ registerGame pool = do
     sender_chan <- newBroadcastTChanIO
     gid <- withGamePool obtainNextGameID pool
     gone_ref <- newIORef False
+    lastKnownStateRef <- newIORef Nothing
 
     let typ = typeOf (undefined :: a)
         inst = GameInstance { writeOutput = sender_chan
                             , receiveInput = receiver_chan
+                            , lastKnownState = lastKnownStateRef
                             , gone = gone_ref
                             , unregisterer =
                                 unregisterMyself gone_ref sender_chan typ gid }
@@ -191,6 +194,7 @@ updateGame new_state changes (GameProvider inst amorph _ cmorph) = do
     unless is_gone $ do
         morphed_new_state <- amorph new_state
         morphed_changes <- cmorph changes
+        writeIORef (lastKnownState inst) $ Just morphed_new_state
         atomically $ writeTChan (writeOutput inst)
                                 (Message morphed_new_state morphed_changes)
 
@@ -209,14 +213,17 @@ receiveGameUpdates (GameClient chan amorph _ cmorph) = do
 
 -- | Returns a list of all games of given type that are currently running.
 enumerateGames :: forall a b c. Game a b c
-               => GamePool -> IO [GameInstance a b c]
+               => GamePool -> IO [(Maybe a, GameInstance a b c)]
 enumerateGames = withGamePool $ do
     maybe_games <- M.lookup (typeOf (undefined :: a)) <$>
                    use games
     case maybe_games of
         Nothing -> return []
-        Just games ->
-            return $ fmap (`fromDyn` undefined) $ M.elems games
+        Just games -> do
+            let instances = fmap (`fromDyn` undefined) $ M.elems games
+            lastKnownStates <- forM instances $
+                                   liftIO . readIORef . lastKnownState
+            return $ zip lastKnownStates instances
 
 -- | Given a game instance, indicate that you want to play it.
 --

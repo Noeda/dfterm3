@@ -19,7 +19,6 @@ import Data.Word
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 
-import Control.Monad ( forM_, when )
 
 import System.Console.GetOpt
 import System.Exit
@@ -32,7 +31,7 @@ import System.Posix.Files
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
 import Network ( withSocketsDo )
 import Control.Concurrent ( threadDelay, forkIO )
-import Control.Monad ( forever, void )
+import Control.Monad ( forever, void, forM_, when )
 
 data StartupOption = Websocket !Word16
                    | AdminPanel !Word16
@@ -84,12 +83,12 @@ main = withOpenSSL $ do
     args <- getArgs
     case getOpt Permute options args of
         (options, [], []) -> run options
-        (_, (e:_), []) -> do
+        (_, e:_, []) -> do
             hPutStrLn stderr $
                 "Unknown command line option " ++ show e
             exitFailure
         (_, _, errors) -> do
-            hPutStrLn stderr $ "Invalid command line options. "
+            hPutStrLn stderr "Invalid command line options. "
             forM_ errors (hPutStrLn stderr)
             hPutStrLn stderr
                 "Use -h, -? or --help to see valid commane line options."
@@ -137,9 +136,9 @@ run options
             _ -> undefined
 
     run' pool admin_panels = do
-        if use_syslog
-          then initializeLogging Syslog
-          else initializeLogging Simple
+        initializeLogging $ if use_syslog
+                              then Syslog
+                              else Simple
 
         logInfo "Dfterm3 starting up."
 
@@ -160,10 +159,10 @@ run options
             exitSuccess
 
         -- Start the websocket services
-        forM_ options $ applyOption
+        forM_ options $ applyOption system
 
         -- Start the admin panel
-        forM_ admin_panels $ forkIO . startAdminPanel system
+        forM_ admin_panels $ forkIO . startAdminPanel pool system
 
         void $ monitorDwarfFortresses pool
 
@@ -171,29 +170,29 @@ run options
         -- do.  Let us loop forever.
         forever $ threadDelay 1000000000
       where
-        applyOption (Websocket port) = void $ WS.listen pool port
-        applyOption _ = return ()
+        applyOption system (Websocket port) = void $ WS.listen pool system port
+        applyOption _ _ = return ()
 
 showHelp :: IO ()
 showHelp = do
     dir <- defaultStorageDirectory
     putStrLn (usageInfo "dfterm3 [options in any order]" options)
-    putStrLn $ "You can specify several WebSocket ports to listen on more \
+    putStrLn   "You can specify several WebSocket ports to listen on more \
                \than one port."
     putStrLn $ "The default storage directory for the current user is \'" ++
                dir ++
                "\'. " ++
                "Specifying the --storage option overrides the default setting."
-    putStrLn $ "If you don't specify the pidfile in any of the daemon options,\
+    putStrLn   "If you don't specify the pidfile in any of the daemon options,\
                \ then no pidfile lock will be used."
-    putStrLn $ "If --syslog is not specified, then logging will written to \
+    putStrLn   "If --syslog is not specified, then logging will written to \
                \standard output.\n"
-    putStrLn $ "By default, there is no administrator password. If you want \
+    putStrLn   "By default, there is no administrator password. If you want \
                \to use the administrator interface, you need to set it at \
                \least once. You can also clear the administrator password \
                \with this command if you want to disable the administrator \
                \interface.\n"
-    putStrLn $ "The administrator interface is served by listening on the \
+    putStrLn   "The administrator interface is served by listening on the \
                \local network device 127.0.0.1. This has the implication that \
                \it cannot be directly accessed from outside the local \
                \computer.\n"
@@ -205,12 +204,12 @@ setAdminPassword us = do
     hFlush stdout
     old_echo <- hGetEcho stdin
     hSetEcho stdin False
-    line <- hGetLine stdin
+    line <- getLine
     hSetEcho stdin old_echo
     putStrLn ""
     if null line
       then do putStrLn "Disable administrator? (y/n)"
-              disabling <- hGetLine stdin
+              disabling <- getLine
               case disabling of
                   "y"   -> U.setAdminPassword Nothing us
                   "yes" -> U.setAdminPassword Nothing us

@@ -44,11 +44,11 @@ body {
     padding: 20px;
     position: absolute;
     height: 150px;
-    width: 400px;
+    width: 500px;
     left: 50%;
     top: 50%;
     margin-top: -75px;
-    margin-left: -200px;
+    margin-left: -250px;
     box-shadow: 5px 5px;
 }
 
@@ -57,5 +57,45 @@ body {
 }
 
 #admin_submit_button input {
+}
+
+.admin_content {
+    background: #ddd;
+    border: 1px solid;
+    padding: 20px;
+    box-shadow: 5px 5px;
+}
+
+.admin_title_unregistered {
+    padding-left: 20px;
+    padding-right: 20px;
+    display: inline-block;
+    background: #f96;
+    box-shadow: 2px 2px;
+}
+
+.admin_title_registered {
+    padding-left: 20px;
+    padding-right: 20px;
+    display: inline-block;
+    background: #69f;
+    box-shadow: 2px 2px;
+}
+
+.admin_content input {
+}
+
+.admin_content .game_name {
+    margin-left: 50px;
+}
+
+.admin_content li {
+    list-style: none;
+    font-family: monospace;
+    display: inline-block;
+    padding: 5px;
+    background: #fff;
+    height: 25px;
+    box-shadow: 1px 1px;
 }
 
