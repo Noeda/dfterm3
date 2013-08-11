@@ -11,7 +11,9 @@ module Dfterm3.WebsocketClient
 import Dfterm3.GamePool
 import Dfterm3.CP437Game
 import Dfterm3.DwarfFortress.Types
+import Dfterm3.DwarfFortress
 import Dfterm3.User
+import Dfterm3.Util
 
 import qualified Data.Aeson as J
 
@@ -22,16 +24,18 @@ import Control.Monad
 import Control.Lens
 import Control.Monad.Reader
 import Control.Applicative ( (<$>) )
+import Control.Exception
 import Data.List
 import Data.Maybe
 import Data.Word
 import Data.Bits
 import Data.Array
 import Data.Vector ( fromList )
-import Data.Enumerator hiding ( length )
-import Data.Enumerator.Binary
+import Data.Enumerator hiding ( length, filter )
+import Data.Enumerator.Binary hiding ( zipWith, filter )
 import Data.Binary.Put
 import qualified Data.ByteString as B
+import qualified Data.ByteString.UTF8 as BU
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 
@@ -78,47 +82,84 @@ websocketClient pool us handle = do
                  runReaderT (runClient client) (pool, handle, us)
 
 client :: Client ()
-client = do
-    -- Currently at "select game" phase. Send the game list to the client and
-    -- wait until a game is selected.
-    game <- chooseYourGame
-    return ()
+client = forever $ chooseYourGame
 
--- | Sends a list of games to the client. Update every 10 seconds.
+-- | Sends a list of games to the client.
 chooseYourGame :: Client ()
 chooseYourGame = do
-    (maybe_states, _) <- unzip <$> withGamePool (liftIO . enumerateGames)
+    (games, instances) <- unzip <$> withGamePool
+                              (liftIO . enumerateRunningGames')
     dfs <- withUserSystem $ liftIO . listDwarfFortresses
 
-    let states = catMaybes maybe_states
-        actual_games = unionBy (\x y -> x^.dfExecutable == y^.dfExecutable)
-                               dfs (fmap _df states)
+    let running_executables = fmap (^. (df . dfExecutable)) games
+        playable_games = filter (\x -> x ^. dfExecutable `elem`
+                                            running_executables)
+                                dfs
 
     let bs = J.encode (fromList
             [ J.String $ T.pack "game_list"
-            , J.Array $ fromList (fmap (J.String . (^. dfName)) actual_games) ])
+            , J.Array $ fromList $
+                zipWith pairify
+                    (fmap (J.String . (^. dfName)) playable_games)
+                    (fmap J.toJSON [(0::Int)..]) ] )
+
     liftWS $ sendBinaryData $ BL.singleton 2 `BL.append` bs
 
-    -- TODO: have GamePool directly inform of any new games and removed games
-    -- immediately instead of polling every 10 seconds.
-    liftIO $ threadDelay 10000000
+    maybe_choice <- receiveChoice
+    case maybe_choice of
+        Nothing -> chooseYourGame
+        Just choice -> do
+            maybe_client <- liftIO $ playGame (instances !! choice)
+            case maybe_client of
+                Nothing -> chooseYourGame
+                Just client -> gameLoop (morphClient (return . _game)
+                                                     (return . id)
+                                                     (return . id)
+                                                     client)
+  where
+    pairify :: J.Value -> J.Value -> J.Value
+    pairify a b = J.Array $ fromList [a, b]
+
+    receiveChoice :: Client (Maybe Int)
+    receiveChoice = liftWS $ do
+        Text msg <- receiveDataMessage
+        return $ case B.head (BL.toStrict msg) of
+            1 -> Just $ read $ BU.toString (B.tail (BL.toStrict msg))
+            _ -> Nothing
 
 -- | This loop sends out CP437 changes to the client, if a game has been
 -- selected. It returns when the game disappears.
 gameLoop :: GameClient CP437Game () CP437Changes
-         -> Bool
          -> Client ()
-gameLoop game_client first = do
-    msg <- liftIO $ receiveGameUpdates game_client
+gameLoop game_client = do
+    sink <- liftWS getSink
     (_, handle, _) <- ask
-    case msg of
-        GameUnregistered -> return ()
-        Message new_state changes -> do
-            liftWS $ sendBinaryData $ if first
-              then encodeStateToBinary new_state
-              else encodeChangesToBinary changes
-            liftIO $ hFlush handle
-            gameLoop game_client False
+    (tid, ref) <- liftIO $ mask $ \restore -> do
+        tid <- forkIOWithUnmask $ \restore -> restore $
+                                      updateLoop sink handle game_client True
+        ref <- newFinalizableIORef () $ killThread tid
+        return (tid, ref)
+
+    inputLoop tid
+    liftIO $ touchIORef ref
+  where
+    inputLoop tid = do
+        Text msg <- liftWS receiveDataMessage
+        case B.head $ BL.toStrict msg of
+            2 -> do liftIO $ killThread tid
+                    chooseYourGame
+            _ -> inputLoop tid
+
+    updateLoop sink handle game_client first = do
+        msg <- liftIO $ receiveGameUpdates game_client
+        case msg of
+            GameUnregistered -> return ()
+            Message new_state changes -> do
+                sendSink sink $ DataMessage $ Binary $ BL.fromStrict $ if first
+                  then encodeStateToBinary new_state
+                  else encodeChangesToBinary changes
+                liftIO $ hFlush handle
+                updateLoop sink handle game_client False
 
 serializeCellChange :: ((Int, Int), CP437Cell) -> Put
 serializeCellChange ((x, y), CP437Cell code fcolor bcolor) = do

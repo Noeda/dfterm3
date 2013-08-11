@@ -16,6 +16,11 @@
     display: inline-block;
 }
 
+.dfterm3_terminal li {
+    list-style: none;
+    background: #f00;
+}
+
 .dfterm3_terminal_title_bar {
     font-family: 'Cootue';
     background: #eee;

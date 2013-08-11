@@ -10,7 +10,10 @@ module Dfterm3.DwarfFortress
     , game, df
     , dfExecutable
     , dfArgs
-    , dfWorkingDirectory )
+    , dfWorkingDirectory
+
+    , enumerateRunningGames
+    , enumerateRunningGames' )
     where
 
 import Dfterm3.GamePool
@@ -23,11 +26,16 @@ import Dfterm3.DwarfFortress.Types
 import System.IO
 import System.IO.Error
 import System.Random
+import System.FilePath
 
+import Control.Applicative ( (<$>) )
+import Control.Monad.IO.Class ( liftIO )
+import Control.Lens
 import Data.Word ( Word8, Word16, Word32, Word64 )
 import Foreign.Storable ( sizeOf )
 import Data.Typeable
 import Data.Foldable
+import Data.Maybe ( catMaybes )
 import Data.ProtocolBuffers
 import Data.Array
 import Data.TypeLevel hiding ( Eq, (-), (*) )
@@ -213,4 +221,41 @@ cp437nator character_code colors =
 
 readMagicCookieFile :: FilePath -> IO B.ByteString
 readMagicCookieFile = B.readFile
+
+enumerateRunningGames :: GamePool -> IO [DwarfFortressCP437]
+enumerateRunningGames pool = do
+    (maybe_states, _) <- unzip <$> liftIO (enumerateGames pool)
+    let states = catMaybes maybe_states
+    traverseOf (each . df . dfExecutable) detectDFHackScript states
+
+enumerateRunningGames' :: GamePool -> IO [( DwarfFortressCP437
+                                          , GameInstance DwarfFortressCP437
+                                                         ()
+                                                         CP437Changes )]
+enumerateRunningGames' pool = do
+    (maybe_states, instances) <- unzip <$> liftIO (enumerateGames pool)
+    let zippified' = zipWith (\a b -> case a of
+                                         Nothing -> Nothing
+                                         Just x  -> Just (x, b))
+                            maybe_states instances
+        zippified = catMaybes zippified'
+
+    traverseOf (each . _1 . df . dfExecutable) detectDFHackScript zippified
+
+detectDFHackScript :: FilePath -> IO FilePath
+detectDFHackScript actual_executable = do
+
+    let alternative_location = potential_dfhack_location actual_executable
+    maybe_handle <- tryIOError $ openFile alternative_location ReadMode
+
+    case maybe_handle of
+        Left _ -> return actual_executable
+        Right handle -> do
+            hClose handle
+            return alternative_location
+  where
+    potential_dfhack_location ex =
+        replaceFileName (takeDirectory ex)
+                        "dfhack"
+
 

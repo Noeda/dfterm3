@@ -39,6 +39,17 @@ dfterm3_playing = function() {
                                                               // comes after it
         var status_element = document.createElement("span");
 
+        var go_back_button = document.createElement("div");
+        var go_back_button_a = document.createElement("a");
+        go_back_button_a.textContent = "Go to game list";
+        go_back_button_a.setAttribute("href", "#");
+        go_back_button.appendChild(go_back_button_a);
+        go_back_button.setAttribute("class", "go_back_button");
+
+        go_back_button_a.onclick = function () {
+            socket.send("\x02");
+        }
+
         var cover = document.createElement("div");
         cover.setAttribute("class", "cover");
 
@@ -49,6 +60,9 @@ dfterm3_playing = function() {
             cover.style.display = "none";
         }
 
+        terminal_dom_element.setAttribute( "class"
+                                         , "dfterm3" );
+
         host_dom_element.appendChild( cover );
         host_dom_element.appendChild( terminal_dom_element );
 
@@ -57,7 +71,7 @@ dfterm3_playing = function() {
         status_element.setAttribute( "class"
                                    , "dfterm3_connection_status_element_good" );
 
-        title.textContent = "Dwarf Fortress v0.31.11"
+        title.textContent = "Unnamed"
 
         var status = function( str, badness ) {
             fade_status_in_after( 0.0 );
@@ -92,6 +106,7 @@ dfterm3_playing = function() {
             terminal_dom_element.removeChild( title );
             terminal_dom_element.removeChild( br_element );
             terminal_dom_element.removeChild( second_br_element );
+            terminal_dom_element.removeChild( go_back_button );
             terminal = undefined;
         }
 
@@ -105,6 +120,7 @@ dfterm3_playing = function() {
             terminal_dom_element.appendChild( br_element );
             terminal_dom_element.appendChild( terminal.getDOMObject() );
             terminal_dom_element.appendChild( second_br_element );
+            terminal_dom_element.appendChild( go_back_button );
         }
 
         title.setAttribute("class", "dfterm3_terminal_title_bar");
@@ -114,13 +130,15 @@ dfterm3_playing = function() {
         // This function parses the WebSocket data received from Dfterm3 when
         // it is screen data. It updates the terminal (if there is one).
         var handleScreenData = function( array ) {
+            stopGameList();
             var array_view = new Uint8Array( array, 1 );
             var w = (array_view[0] << 8) | array_view[1];
             var h = (array_view[2] << 8) | array_view[3];
             if ( !terminal ) {
-                return;
+                startTerminal( w, h );
+            } else {
+                terminal.resize( w, h );
             }
-            terminal.resize( w, h );
             var num_elements = (array_view[4] << 24) |
                                (array_view[5] << 16) |
                                (array_view[6] << 8) |
@@ -140,7 +158,59 @@ dfterm3_playing = function() {
             }
         }
 
-        startTerminal( 80, 24 );
+        var game_list_ul = undefined;
+        var game_list_h1 = undefined;
+
+        var stopGameList = function() {
+            if ( !game_list_ul ) {
+                return;
+            }
+            terminal_dom_element.removeChild( game_list_ul );
+            terminal_dom_element.removeChild( game_list_h1 );
+            game_list_ul = undefined;
+        }
+
+        var startGameList = function(msg) {
+            stopGameList();
+
+            game_list_ul = document.createElement("ul");
+            for ( var i = 0; i < msg.length; ++i ) {
+                var li = document.createElement("li");
+                var a = document.createElement("a");
+                a.setAttribute("href", "#");
+                a.textContent = msg[i][0];
+                var x = i;
+                a.onclick = function () {
+                    var choice = msg[x][1];
+                    socket.send("\x01" + choice);
+                    title.textContent = msg[x][0];
+                }
+                li.appendChild(a);
+                game_list_ul.appendChild(li);
+            }
+
+            game_list_h1 = document.createElement("h1");
+            game_list_h1.textContent = "Choose your game";
+
+            if ( msg.length == 0 ) {
+                game_list_h1.textContent = "No games currently running";
+            }
+
+            terminal_dom_element.appendChild( game_list_h1 );
+            terminal_dom_element.appendChild( game_list_ul );
+        }
+
+        var handleGameListMessage = function(msg) {
+            stopTerminal();
+            startGameList(msg);
+        }
+
+        var jsonMessage = function(msg) {
+            if ( msg[0] == "game_list" ) {
+                handleGameListMessage( msg[1] );
+            }
+        }
+
         showCover();
 
         var socket = new WebSocket( host );
@@ -164,7 +234,7 @@ dfterm3_playing = function() {
                     var reader2 = new FileReader();
                     reader2.readAsText(event.data);
                     reader2.onload = function() {
-                        console.log(reader2.result);
+                        jsonMessage( JSON.parse(reader2.result.substring(1)) );
                     }
                 }
             }

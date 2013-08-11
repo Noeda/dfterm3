@@ -35,6 +35,44 @@ body {
     top: 10px;
 }
 
+.dfterm3 h1 {
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    display: inline-block;
+    background: #9af;
+    box-shadow: 2px 2px;
+}
+
+.dfterm3 ul {
+    background: #fff;
+    box-shadow: 2px 2px;
+}
+
+.dfterm3 li {
+    list-style: none;
+    padding: 5px;
+}
+
+.dfterm3 a {
+    color: #000;
+    padding: 3px;
+    text-decoration: none;
+}
+
+.dfterm3 a:hover {
+    color: #000;
+    background: #ddd;
+}
+
+.go_back_button a {
+    background: #fff;
+    padding: 3px;
+    text-decoration: none;
+    box-shadow: 2px 2px;
+}
+
 .auth_part {
 }
 

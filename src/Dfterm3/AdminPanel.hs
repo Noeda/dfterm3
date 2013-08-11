@@ -12,9 +12,9 @@ import Dfterm3.Util ( whenJust )
 import Dfterm3.User
 import Dfterm3.Logging
 import Dfterm3.GamePool
+import Dfterm3.DwarfFortress ( enumerateRunningGames )
 import Dfterm3.DwarfFortress.Types
 
-import System.FilePath
 import System.IO
 import System.IO.Error
 
@@ -27,7 +27,6 @@ import Control.Lens
 import Control.Monad.IO.Class ( liftIO )
 import Control.Applicative ( (<$>) )
 import Data.Word ( Word16 )
-import Data.Maybe ( catMaybes )
 
 import Text.Blaze ((!))
 import qualified Text.Blaze.Html5 as L
@@ -110,12 +109,6 @@ makeSessionId admin =
                                        adminSessionID admin))
                           { H.httpOnly = True }
 
-enumerateRunningGames :: GamePool -> IO [DwarfFortressCP437]
-enumerateRunningGames pool = do
-    (maybe_states, _) <- unzip <$> liftIO (enumerateGames pool)
-    let states = catMaybes maybe_states
-    traverseOf (each . df . dfExecutable) detectDFHackScript states
-
 first :: (a -> Bool) -> [a] -> Maybe a
 first _ [] = Nothing
 first predicate (x:xs)
@@ -144,23 +137,6 @@ registerGameByExecutable executable name pool us = do
                    "'" ++ executable ++ "', working directory '" ++
                    (target^.dfWorkingDirectory) ++ "' and name '" ++
                    name ++ "'"
-
-detectDFHackScript :: FilePath -> IO FilePath
-detectDFHackScript actual_executable = do
-
-    let alternative_location = potential_dfhack_location actual_executable
-    maybe_handle <- tryIOError $ openFile alternative_location ReadMode
-
-    case maybe_handle of
-        Left _ -> return actual_executable
-        Right handle -> do
-            hClose handle
-            return alternative_location
-  where
-    potential_dfhack_location ex =
-        replaceFileName (takeDirectory ex)
-                        "dfhack"
-
 
 adminPanelAuthenticated :: Admin -> GamePool -> UserSystem
                         -> H.ServerPart H.Response
