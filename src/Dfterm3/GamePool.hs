@@ -21,10 +21,16 @@ module Dfterm3.GamePool
     , GameClient()
     -- ** Game providers
     , updateGame
+    , updateGameWithoutState
+    , receiveGameInput
     -- ** Game clients
     , playGame
     , receiveGameUpdates
+    , sendGameInput
     , GameMessage(..)
+    -- ** Chatting
+    , gameChannel
+    , gameClientChannel
     -- * Morphers
     --
     -- | Or transformers. I'm unsure of the terminology. Anyway, these can take
@@ -44,6 +50,7 @@ module Dfterm3.GamePool
 import Data.IORef
 import Data.Typeable
 import Data.Dynamic
+import Dfterm3.ChatChannel
 import Control.Concurrent.MVar
 import Control.Concurrent.STM
 import Control.Lens hiding ( indices )
@@ -71,11 +78,13 @@ data GameMessage a b = GameUnregistered  -- ^ Game was unregistered from the
                      | Message a b  -- ^ The first is the new state and the
                                     -- second is changesets between previous
                                     -- state and that new state.
+                     | MessageWithoutState b
 
 data GameInstance a b c = GameInstance
     { writeOutput :: !(TChan (GameMessage a c))
     , receiveInput :: !(TChan b)
     , lastKnownState :: IORef (Maybe a)
+    , channel :: !Channel
     , gone :: !(IORef Bool)
     , unregisterer :: IO () }
     deriving ( Typeable )
@@ -95,6 +104,8 @@ data GameProvider a b c =
 data GameClient a b c =
     forall a' b' c' . Game a' b' c' => GameClient
         !(TChan (GameMessage a' c'))
+        !(TChan b')
+        !Channel
         !(a' -> IO a)
         !(b -> IO b')
         !(c' -> IO c)
@@ -141,11 +152,13 @@ registerGame pool = do
     gid <- withGamePool obtainNextGameID pool
     gone_ref <- newIORef False
     lastKnownStateRef <- newIORef Nothing
+    channel <- registerChannel
 
     let typ = typeOf (undefined :: a)
         inst = GameInstance { writeOutput = sender_chan
                             , receiveInput = receiver_chan
                             , lastKnownState = lastKnownStateRef
+                            , channel = channel
                             , gone = gone_ref
                             , unregisterer =
                                 unregisterMyself gone_ref sender_chan typ gid }
@@ -198,18 +211,46 @@ updateGame new_state changes (GameProvider inst amorph _ cmorph) = do
         atomically $ writeTChan (writeOutput inst)
                                 (Message morphed_new_state morphed_changes)
 
+-- | Tells everyone that some changes happened in a game but don't provide a
+-- state.
+--
+-- You should prefer `updateGame` where possible. The message that is
+-- transmitted will contain the last state used in `updateGame`.
+updateGameWithoutState :: c -> GameProvider a b c -> IO ()
+updateGameWithoutState changes (GameProvider inst _ _ cmorph) = do
+    is_gone <- readIORef (gone inst)
+    unless is_gone $ do
+        morphed_changes <- cmorph changes
+        atomically $ writeTChan (writeOutput inst)
+                                (MessageWithoutState morphed_changes)
+
+
 -- | Checks if there are any updates on some game.
 --
 -- This blocks until a message is available. If you receive `GameUnregistered`,
 -- then it is no longer guaranteed any messages will arrive (which would make
 -- you block forever if you called this again).
 receiveGameUpdates :: GameClient a b c -> IO (GameMessage a c)
-receiveGameUpdates (GameClient chan amorph _ cmorph) = do
+receiveGameUpdates (GameClient chan _ _ amorph _ cmorph) = do
     msg <- atomically $ readTChan chan
     case msg of
         Message x y ->
             Message <$> amorph x <*> cmorph y
+        MessageWithoutState y ->
+            MessageWithoutState <$> cmorph y
         GameUnregistered -> return GameUnregistered
+
+-- | Receives input from clients.
+receiveGameInput :: GameProvider a b c -> IO b
+receiveGameInput (GameProvider inst _ bmorph _) = do
+    msg <- atomically $ readTChan (receiveInput inst)
+    bmorph msg
+
+-- | Sends back information from client to the game.
+sendGameInput :: b -> GameClient a b c -> IO ()
+sendGameInput input (GameClient _ send_chan _ _ bmorph _) = do
+    value <- bmorph input
+    atomically $ writeTChan send_chan value
 
 -- | Returns a list of all games of given type that are currently running.
 enumerateGames :: forall a b c. Game a b c
@@ -225,6 +266,14 @@ enumerateGames = withGamePool $ do
                                    liftIO . readIORef . lastKnownState
             return $ zip lastKnownStates instances
 
+-- | Returns the channel associated with a game instance.
+gameChannel :: GameInstance a b c -> Channel
+gameChannel = channel
+
+-- | Returns the channel associated with a game client.
+gameClientChannel :: GameClient a b c -> Channel
+gameClientChannel (GameClient _ _ channel _ _ _) = channel
+
 -- | Given a game instance, indicate that you want to play it.
 --
 -- You are given a `GameClient` that you can use to obtain game changesets and
@@ -239,7 +288,12 @@ playGame inst = do
     is_gone <- readIORef (gone inst)
     return $ if is_gone
       then Nothing
-      else Just $ GameClient my_tchan fmapreturnid fmapreturnid fmapreturnid
+      else Just $ GameClient my_tchan
+                             (receiveInput inst)
+                             (gameChannel inst)
+                             fmapreturnid
+                             fmapreturnid
+                             fmapreturnid
   where
     fmapreturnid = fmap return id
 
@@ -269,8 +323,11 @@ morphClient :: Game a' b' c'
             -> (c -> IO c')
             -> GameClient a b c
             -> GameClient a' b' c'
-morphClient a_to_a' b'_to_b c_to_c' (GameClient chan a_morph b_morph c_morph) =
+morphClient a_to_a' b'_to_b c_to_c' (GameClient chan input_chan chat
+                                                a_morph b_morph c_morph) =
     GameClient chan
+               input_chan
+               chat
                (a_morph >=> a_to_a')
                (b'_to_b >=> b_morph)
                (c_morph >=> c_to_c')

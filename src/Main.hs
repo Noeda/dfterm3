@@ -8,6 +8,7 @@ import qualified Dfterm3.WebsocketAccepter as WS
 import Dfterm3.Logging
 import Dfterm3.GamePool
 import Dfterm3.DwarfFortress
+import qualified Dfterm3.UserVolatile as UV
 import qualified Dfterm3.User as U
 
 import Dfterm3.AdminPanel
@@ -158,8 +159,10 @@ run options
             setAdminPassword system
             exitSuccess
 
+        uv <- UV.newUserVolatile
+
         -- Start the websocket services
-        forM_ options $ applyOption system
+        forM_ options $ applyOption system uv
 
         -- Start the admin panel
         forM_ admin_panels $ forkIO . startAdminPanel pool system
@@ -170,8 +173,9 @@ run options
         -- do.  Let us loop forever.
         forever $ threadDelay 1000000000
       where
-        applyOption system (Websocket port) = void $ WS.listen pool system port
-        applyOption _ _ = return ()
+        applyOption system uv (Websocket port) =
+            void $ WS.listen pool system uv port
+        applyOption _ _ _ = return ()
 
 showHelp :: IO ()
 showHelp = do

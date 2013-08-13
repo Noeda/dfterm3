@@ -1,7 +1,8 @@
 @import url("dfterm3_term.css");
 
 body {
-    background: url('background.jpg');
+    /* background: url('background.jpg'); */
+    background: #eee;
 }
 
 .cover {
@@ -36,41 +37,31 @@ body {
 }
 
 .dfterm3 h1 {
-    padding-left: 20px;
-    padding-right: 20px;
-    padding-top: 10px;
-    padding-bottom: 10px;
     display: inline-block;
-    background: #9af;
-    box-shadow: 2px 2px;
 }
 
 .dfterm3 ul {
-    background: #fff;
-    box-shadow: 2px 2px;
 }
 
 .dfterm3 li {
     list-style: none;
-    padding: 5px;
 }
 
 .dfterm3 a {
     color: #000;
+    background: #ddd;
     padding: 3px;
     text-decoration: none;
 }
 
 .dfterm3 a:hover {
     color: #000;
-    background: #ddd;
+    background: #fff;
 }
 
 .go_back_button a {
-    background: #fff;
     padding: 3px;
     text-decoration: none;
-    box-shadow: 2px 2px;
 }
 
 .auth_part {
@@ -131,9 +122,36 @@ body {
     list-style: none;
     font-family: monospace;
     display: inline-block;
-    padding: 5px;
-    background: #fff;
+    padding: 10px;
+    background: #ddd;
     height: 25px;
     box-shadow: 1px 1px;
 }
+
+.chat {
+}
+
+.chat h3 {
+    padding-top: 5px;
+    margin: 10px;
+}
+
+.chat input {
+    margin-left: 10px;
+    margin-bottom: 5px;
+    width: 80%;
+}
+
+#login_text {
+    width: 20em;
+}
+
+.chat_from_who {
+    font-weight: bold;
+}
+
+.chat_content {
+    margin-left: 2em;
+}
+
 

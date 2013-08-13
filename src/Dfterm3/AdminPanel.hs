@@ -15,9 +15,6 @@ import Dfterm3.GamePool
 import Dfterm3.DwarfFortress ( enumerateRunningGames )
 import Dfterm3.DwarfFortress.Types
 
-import System.IO
-import System.IO.Error
-
 import qualified Happstack.Server.SimpleHTTP as H
 import qualified Happstack.Server.FileServe as H
 import qualified Data.ByteString.UTF8 as BU

@@ -8,6 +8,11 @@
 module Dfterm3.DwarfFortress.Types
     ( DwarfFortress(..)
     , DwarfFortressCP437(..)
+    , DwarfFortressCP437Changes(..)
+    , DwarfFortressInput(..)
+    , DwarfFortressInstance
+    , DwarfFortressClient
+    , DwarfFortressProvider
     , dfExecutable
     , dfArgs
     , dfWorkingDirectory
@@ -16,7 +21,7 @@ module Dfterm3.DwarfFortress.Types
     , game )
     where
 
-import Dfterm3.GamePool ( Game )
+import Dfterm3.GamePool
 import Dfterm3.CP437Game
 import Data.Typeable ( Typeable )
 import Control.Lens
@@ -36,5 +41,21 @@ data DwarfFortressCP437 = DwarfFortressCP437 { _game :: CP437Game
                           deriving ( Typeable )
 makeLenses ''DwarfFortressCP437
 
-instance Game DwarfFortressCP437 () CP437Changes
+data DwarfFortressCP437Changes = CP437 CP437Changes
+                                 deriving ( Typeable )
+
+instance Game DwarfFortressCP437 DwarfFortressInput DwarfFortressCP437Changes
+
+data DwarfFortressInput = Input T.Text
+                          deriving ( Typeable )
+
+type DwarfFortressInstance = GameInstance DwarfFortressCP437
+                                          DwarfFortressInput
+                                          DwarfFortressCP437Changes
+type DwarfFortressClient = GameClient DwarfFortressCP437
+                                      DwarfFortressInput
+                                      DwarfFortressCP437Changes
+type DwarfFortressProvider = GameProvider DwarfFortressCP437
+                                          DwarfFortressInput
+                                          DwarfFortressCP437Changes
 

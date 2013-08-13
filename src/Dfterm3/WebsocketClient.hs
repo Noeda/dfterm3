@@ -2,7 +2,7 @@
 -- talks to the client on the other side of the WebSocket connection.
 --
 
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, ViewPatterns #-}
 
 module Dfterm3.WebsocketClient
     ( websocketClient )
@@ -14,6 +14,9 @@ import Dfterm3.DwarfFortress.Types
 import Dfterm3.DwarfFortress
 import Dfterm3.User
 import Dfterm3.Util
+import Dfterm3.Dfterm3Monad
+import Dfterm3.UserVolatile
+import Dfterm3.ChatChannel
 
 import qualified Data.Aeson as J
 
@@ -25,8 +28,6 @@ import Control.Lens
 import Control.Monad.Reader
 import Control.Applicative ( (<$>) )
 import Control.Exception
-import Data.List
-import Data.Maybe
 import Data.Word
 import Data.Bits
 import Data.Array
@@ -38,54 +39,41 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as BU
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 -- Probably should change to `Rfc6455` when (or if) that becomes available in
 -- the websockets library.
 type DftermProto = Hybi10
 
--- We carry around a handle, a gamepool and a user system all over so it makes
--- sense to monadify that.
-newtype Client a =
-    Client
-    { runClient ::
-        ReaderT (GamePool, Handle, UserSystem) (WebSockets DftermProto) a }
-    deriving ( Monad, MonadIO, MonadReader (GamePool, Handle, UserSystem)
-             , Functor )
+type Dfterm3TWS a = Dfterm3ClientT
+                        (ReaderT Handle (WebSockets DftermProto)) a
 
--- Convenience functions to extract the stuff from the above monad
-withGamePool :: (GamePool -> Client a) -> Client a
-withGamePool action = do
-    (pool, _, _) <- ask
-    action pool
+liftWS :: WebSockets DftermProto a -> Dfterm3TWS a
+liftWS = lift . lift
 
-withHandle :: (Handle -> Client a) -> Client a
-withHandle action = do
-    (_, handle, _) <- ask
-    action handle
+getHandle :: Dfterm3TWS Handle
+getHandle = lift ask
 
-withUserSystem :: (UserSystem -> Client a) -> Client a
-withUserSystem action = do
-    (_, _, us) <- ask
-    action us
-
-liftWS :: WebSockets DftermProto a -> Client a
-liftWS = Client . lift
-
-websocketClient :: GamePool -> UserSystem -> Handle -> IO ()
-websocketClient pool us handle = do
+websocketClient :: GamePool -> UserSystem -> UserVolatile -> Handle -> IO ()
+websocketClient pool us uv handle = do
     let enumerator = enumHandle 8192 handle
     run_ $ enumerator $$
            runWebSocketsHandshake True ar (iterHandle handle)
   where
     ar :: Request -> WebSockets DftermProto ()
     ar request = acceptRequest request >>
-                 runReaderT (runClient client) (pool, handle, us)
+                 runReaderT (runDfterm3ClientT client
+                                               Nothing
+                                               pool
+                                               us
+                                               uv)
+                            handle
 
-client :: Client ()
-client = forever $ chooseYourGame
+client :: Dfterm3TWS ()
+client = forever chooseYourGame
 
 -- | Sends a list of games to the client.
-chooseYourGame :: Client ()
+chooseYourGame :: Dfterm3TWS ()
 chooseYourGame = do
     (games, instances) <- unzip <$> withGamePool
                               (liftIO . enumerateRunningGames')
@@ -112,15 +100,12 @@ chooseYourGame = do
             maybe_client <- liftIO $ playGame (instances !! choice)
             case maybe_client of
                 Nothing -> chooseYourGame
-                Just client -> gameLoop (morphClient (return . _game)
-                                                     (return . id)
-                                                     (return . id)
-                                                     client)
+                Just client -> gameLoop client
   where
     pairify :: J.Value -> J.Value -> J.Value
     pairify a b = J.Array $ fromList [a, b]
 
-    receiveChoice :: Client (Maybe Int)
+    receiveChoice :: Dfterm3TWS (Maybe Int)
     receiveChoice = liftWS $ do
         Text msg <- receiveDataMessage
         return $ case B.head (BL.toStrict msg) of
@@ -129,37 +114,65 @@ chooseYourGame = do
 
 -- | This loop sends out CP437 changes to the client, if a game has been
 -- selected. It returns when the game disappears.
-gameLoop :: GameClient CP437Game () CP437Changes
-         -> Client ()
+gameLoop :: DwarfFortressClient
+         -> Dfterm3TWS ()
 gameLoop game_client = do
     sink <- liftWS getSink
-    (_, handle, _) <- ask
-    (tid, ref) <- liftIO $ mask $ \restore -> do
+    handle <- getHandle
+
+    listener <- liftIO $ registerAsListener (gameClientChannel game_client)
+
+    (tid, tid2, ref) <- liftIO $ mask_ $ do
         tid <- forkIOWithUnmask $ \restore -> restore $
                                       updateLoop sink handle game_client True
-        ref <- newFinalizableIORef () $ killThread tid
-        return (tid, ref)
+        tid2 <- forkIOWithUnmask $ \restore -> restore $
+                                      chatLoop sink listener
+        ref <- newFinalizableIORef () $ killThread tid >> killThread tid2
+        return (tid, tid2, ref)
 
-    inputLoop tid
-    liftIO $ touchIORef ref
+    inputLoop tid tid2 ref handle
   where
-    inputLoop tid = do
+    inputLoop tid tid2 ref handle = do
         Text msg <- liftWS receiveDataMessage
         case B.head $ BL.toStrict msg of
-            2 -> do liftIO $ killThread tid
+            2 -> do liftIO $ killThread tid >> killThread tid2
+                    liftIO $ touchIORef ref
                     chooseYourGame
-            _ -> inputLoop tid
+            3 -> do whenLoggedIn $ \(userName -> name) ->
+                        liftIO $ chat name
+                                    (T.take 800 $ T.decodeUtf8 $
+                                     BL.toStrict $ BL.tail msg)
+                                    (gameClientChannel game_client)
+                    inputLoop tid tid2 ref handle
+            4 -> let name = T.take 20 $
+                                T.decodeUtf8 $ BL.toStrict $ BL.tail msg
+                  in do maybe_user <- loginM name
+                        liftWS $ sendBinaryData $ case maybe_user of
+                            Nothing -> BL.singleton 3
+                            Just  _ -> BL.singleton 4
+                        inputLoop tid tid2 ref handle
+            _ -> inputLoop tid tid2 ref handle
+
+    chatLoop sink listener = forever $ do
+        (user_name, msg) <- listen listener
+
+        let bs = J.encode (fromList [ J.String $ T.pack "chat"
+                                    , J.String user_name
+                                    , J.String msg ])
+
+        sendSink sink $ DataMessage $ Binary $ BL.singleton 2 `BL.append` bs
 
     updateLoop sink handle game_client first = do
         msg <- liftIO $ receiveGameUpdates game_client
         case msg of
             GameUnregistered -> return ()
-            Message new_state changes -> do
+            Message (_game -> new_state) (CP437 changes) -> do
                 sendSink sink $ DataMessage $ Binary $ BL.fromStrict $ if first
                   then encodeStateToBinary new_state
                   else encodeChangesToBinary changes
                 liftIO $ hFlush handle
                 updateLoop sink handle game_client False
+            _ -> error "Unexpected message from Dwarf Fortress game."
 
 serializeCellChange :: ((Int, Int), CP437Cell) -> Put
 serializeCellChange ((x, y), CP437Cell code fcolor bcolor) = do

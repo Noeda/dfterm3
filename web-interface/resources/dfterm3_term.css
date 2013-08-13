@@ -22,11 +22,9 @@
 }
 
 .dfterm3_terminal_title_bar {
-    font-family: 'Cootue';
-    background: #eee;
     padding: 10px;
-    line-height: 2.5;
-    box-shadow: 5px 5px;
+    margin: 5px;
+    font-size: 32pt;
 }
 
 .fblack { color: #000; }

@@ -22,6 +22,7 @@ import Dfterm3.Logging
 import Dfterm3.Safe
 
 import Dfterm3.DwarfFortress.Types
+import Dfterm3.Util ( forkDyingIO )
 
 import System.IO
 import System.IO.Error
@@ -171,17 +172,29 @@ dfhackConnection pool handle = do
     mask $ \restore -> do
         ( provider, game_instance ) <- registerGame pool
 
-        let title = "Dwarf Fortress " `T.append` version
+        forkDyingIO (input_processer provider) $ do
+            let title = "Dwarf Fortress " `T.append` version
 
-        finally
-            (restore $ rec title
-                 (provider
-                   :: GameProvider DwarfFortressCP437 () CP437Changes)
-                  emptyCP437Changes
-                  df_info
-                  msg)
-            (unregisterGame game_instance)
+            finally
+                (restore $ rec title
+                      (provider :: DwarfFortressProvider)
+                      (CP437 . emptyCP437Changes)
+                      df_info
+                      msg)
+                (unregisterGame game_instance)
   where
+    input_processer :: DwarfFortressProvider -> IO ()
+    input_processer provider = forever $ do
+        input <- receiveGameInput provider
+        case input of
+            Input _ -> return ()
+
+    rec :: T.Text
+        -> DwarfFortressProvider
+        -> (CP437Game -> DwarfFortressCP437Changes)
+        -> DwarfFortress
+        -> ScreenData
+        -> IO ()
     rec title provider changer df_info msg = do
         let Just cp437Data = getField $ screenCP437 msg
             Just colorsData = getField $ colors msg
@@ -206,7 +219,7 @@ dfhackConnection pool handle = do
                    (changer cp437game)
                    provider
 
-        rec title provider (findCP437Changes cp437game) df_info
+        rec title provider (CP437 . findCP437Changes cp437game) df_info
             =<< hGetMessage handle
 
 cp437nator :: Word8 -> Word8 -> CP437Cell
@@ -229,9 +242,7 @@ enumerateRunningGames pool = do
     traverseOf (each . df . dfExecutable) detectDFHackScript states
 
 enumerateRunningGames' :: GamePool -> IO [( DwarfFortressCP437
-                                          , GameInstance DwarfFortressCP437
-                                                         ()
-                                                         CP437Changes )]
+                                          , DwarfFortressInstance )]
 enumerateRunningGames' pool = do
     (maybe_states, instances) <- unzip <$> liftIO (enumerateGames pool)
     let zippified' = zipWith (\a b -> case a of

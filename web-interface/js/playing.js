@@ -10,6 +10,11 @@ dfterm3_playing = function() {
     // protocol message types.
     var SCREEN_DATA = 1;
     var JSON_DATA = 2;
+    var CHAT_MESSAGE = 3;
+    var LOGIN_REJECTED = 3;
+    var LOGIN_ACCEPTED = 4;
+
+    var logged_in = false;
 
     if ( WebSocket === undefined ) {
         exports.websockets_are_supported = false;
@@ -41,7 +46,7 @@ dfterm3_playing = function() {
 
         var go_back_button = document.createElement("div");
         var go_back_button_a = document.createElement("a");
-        go_back_button_a.textContent = "Go to game list";
+        go_back_button_a.textContent = "Go back to game list";
         go_back_button_a.setAttribute("href", "#");
         go_back_button.appendChild(go_back_button_a);
         go_back_button.setAttribute("class", "go_back_button");
@@ -62,6 +67,62 @@ dfterm3_playing = function() {
 
         terminal_dom_element.setAttribute( "class"
                                          , "dfterm3" );
+
+        var chat_box = document.createElement("div");
+        var login_form = document.createElement("form");
+        var login_text = document.createElement("input");
+        var login_title = document.createElement("h3");
+        var login_label = document.createElement("label");
+        login_form.setAttribute("action", "#chat");
+        login_text.setAttribute("type", "text");
+        login_label.textContent = "User name:";
+        login_form.appendChild( login_title );
+        login_form.appendChild(login_label);
+        login_form.appendChild( login_text );
+        login_text.setAttribute("id", "login_text");
+        login_text.setAttribute("maxlength", 20);
+        login_title.textContent = "Login";
+
+        chat_box.appendChild( login_form );
+        chat_box.setAttribute( "class", "chat" );
+        var chat_title = document.createElement("h3");
+        chat_title.textContent = "Chat";
+        chat_box.appendChild( chat_title );
+        var chat_form = document.createElement("form");
+        var chat_text = document.createElement("input");
+        var chat_hr = document.createElement("hr")
+        chat_form.setAttribute("action", "#chat");
+        chat_text.setAttribute("type", "text");
+        chat_text.style.display = "none";
+        chat_text.setAttribute("maxlength", 800);
+        chat_form.appendChild( chat_text );
+        chat_box.appendChild( chat_form );
+        chat_box.appendChild( chat_hr );
+
+        var clearChat = function () {
+            var start;
+            while ( (start = chat_hr.nextSibling) ) {
+                chat_box.removeChild(start);
+            }
+        }
+
+        login_form.onsubmit = function () {
+            var login_name = login_text.value;
+            login_text.value = "";
+
+            socket.send("\x04" + login_name);
+        }
+
+        chat_form.onsubmit = function () {
+            var msg = chat_text.value;
+            chat_text.value = "";
+
+            socket.send("\x03" + msg);
+        }
+
+        var chatMessage = function(msg) {
+            console.log(msg);
+        }
 
         host_dom_element.appendChild( cover );
         host_dom_element.appendChild( terminal_dom_element );
@@ -107,7 +168,10 @@ dfterm3_playing = function() {
             terminal_dom_element.removeChild( br_element );
             terminal_dom_element.removeChild( second_br_element );
             terminal_dom_element.removeChild( go_back_button );
+            terminal_dom_element.removeChild( chat_box );
             terminal = undefined;
+
+            clearChat();
         }
 
         // Starts a terminal on the page. Removes the old terminal if it is
@@ -121,6 +185,7 @@ dfterm3_playing = function() {
             terminal_dom_element.appendChild( terminal.getDOMObject() );
             terminal_dom_element.appendChild( second_br_element );
             terminal_dom_element.appendChild( go_back_button );
+            terminal_dom_element.appendChild( chat_box );
         }
 
         title.setAttribute("class", "dfterm3_terminal_title_bar");
@@ -205,9 +270,26 @@ dfterm3_playing = function() {
             startGameList(msg);
         }
 
+        var handleChatMessage = function(from_who, content) {
+            var line = document.createElement("p");
+            var from_who_span = document.createElement("span");
+            line.appendChild(from_who_span);
+            var content_span = document.createElement("span");
+            line.appendChild(content_span);
+
+            from_who_span.setAttribute("class", "chat_from_who");
+            content_span.setAttribute("class", "chat_content");
+
+            from_who_span.textContent = from_who + ":"
+            content_span.textContent = content;
+            chat_box.insertBefore( line, chat_hr.nextSibling );
+        }
+
         var jsonMessage = function(msg) {
             if ( msg[0] == "game_list" ) {
                 handleGameListMessage( msg[1] );
+            } else if ( msg[0] == "chat" ) {
+                handleChatMessage( msg[1], msg[2] );
             }
         }
 
@@ -236,6 +318,12 @@ dfterm3_playing = function() {
                     reader2.onload = function() {
                         jsonMessage( JSON.parse(reader2.result.substring(1)) );
                     }
+                } else if ( array_view[0] == LOGIN_REJECTED ) {
+                    status( "Login rejected", true );
+                } else if ( array_view[0] == LOGIN_ACCEPTED ) {
+                    status( "Logged in", false );
+                    chat_text.style.display = "block";
+                    login_form.style.display = "none";
                 }
             }
         }
