@@ -20,7 +20,8 @@
                 document.writeln("No WebSocket support. You can not play. " +
                                  "You terrible person.");
             } else {
-                dfterm3_playing.play( "ws://127.0.0.1:8000"
+                dfterm3_playing.play( "ws://" + window.location.hostname +
+                                      ":8000"
                                     , document.getElementById("myterm") );
             }
         </script>

@@ -8,6 +8,7 @@ import qualified Dfterm3.WebsocketAccepter as WS
 import Dfterm3.Logging
 import Dfterm3.GamePool
 import Dfterm3.DwarfFortress
+import Dfterm3.WebsocketHTTP
 import qualified Dfterm3.UserVolatile as UV
 import qualified Dfterm3.User as U
 
@@ -40,6 +41,7 @@ data StartupOption = Websocket !Word16
                    | StorageLocation FilePath
                    | Daemonize (Maybe FilePath)
                    | SetAdminPassword
+                   | WebsocketHTTP !Word16
                    | UseSyslog
                    deriving ( Eq, Ord, Show, Read, Typeable )
 
@@ -64,7 +66,11 @@ options = [ Option "w" ["websocket"]
             "ask for the administrator password and exit."
           , Option [] ["admin-panel"]
             (ReqArg (AdminPanel . read) "PORT")
-            "serve administrator panel as a web interface on this port." ]
+            "serve administrator panel as a web interface on this port."
+          , Option [] ["websocket-http"]
+            (ReqArg (WebsocketHTTP . read) "PORT")
+            "serve websocket playing interface as a web interface \
+            \on this port." ]
 
 isStorageOption :: StartupOption -> Bool
 isStorageOption (StorageLocation _) = True
@@ -175,6 +181,8 @@ run options
       where
         applyOption system uv (Websocket port) =
             void $ WS.listen pool system uv port
+        applyOption _ _ (WebsocketHTTP port) =
+            void $ forkIO $ startWebsocketHTTP port
         applyOption _ _ _ = return ()
 
 showHelp :: IO ()
