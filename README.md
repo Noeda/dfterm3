@@ -67,7 +67,7 @@ write in the name of the game that you want others to see and click
 "Register". The game should now be visible to anyone who points their browser
 at your computer at the port you gave in `--websocket-http`. For example, if
 your IP-address is "1.2.3.4", then the address would be
-<http://1.2.3.4/playing/> (remember the last slash '/').
+<http://1.2.3.4:8080/playing/> (remember the last slash '/').
 
 
 File hierarchy
