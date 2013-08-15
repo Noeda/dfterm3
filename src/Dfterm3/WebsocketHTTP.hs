@@ -15,11 +15,16 @@ import Control.Monad
 startWebsocketHTTP :: Word16 -> IO ()
 startWebsocketHTTP port =
     H.simpleHTTP (H.nullConf { H.port = fromIntegral port }) $
-        H.dir "playing" $
-            msum [ H.dir "resources" $ H.serveDirectory H.DisableBrowsing []
-                                       "./web-interface/resources"
-                 , H.dir "js" $ H.serveDirectory H.DisableBrowsing []
-                                       "./web-interface/js"
-                 , H.serveFile (H.asContentType "text/html")
-                               "./web-interface/playing.html" ]
+        msum [ playing
+             , do H.nullDir
+                  H.movedPermanently ("playing/") $
+                      H.toResponse ("Redirecting...") ]
+  where
+    playing = H.dir "playing" $
+        msum [ H.dir "resources" $ H.serveDirectory H.DisableBrowsing []
+                                   "./web-interface/resources"
+             , H.dir "js" $ H.serveDirectory H.DisableBrowsing []
+                                   "./web-interface/js"
+             , H.serveFile (H.asContentType "text/html")
+                           "./web-interface/playing.html" ]
 

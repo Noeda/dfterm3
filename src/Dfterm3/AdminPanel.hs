@@ -45,7 +45,10 @@ startAdminPanel pool us port = do
                            (adminPart pool us)
 
 adminPart :: GamePool -> UserSystem -> H.ServerPart H.Response
-adminPart pool us = msum [ H.dir "admin" $ adminPanelRoot pool us ]
+adminPart pool us = msum [ H.dir "admin" $ adminPanelRoot pool us
+                         , do H.nullDir
+                              H.movedPermanently ("admin/" :: T.Text) $
+                                 H.toResponse ("Redirecting..." :: T.Text) ]
 
 adminPanelRoot :: GamePool -> UserSystem -> H.ServerPart H.Response
 adminPanelRoot pool us = msum [ H.dir "resources" $
