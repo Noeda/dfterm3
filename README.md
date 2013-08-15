@@ -74,6 +74,8 @@ File hierarchy
 --------------
 
     src/              Haskell source code
+    main/             Haskell source code for `main` function.
     web-interface/    HTML, JavaScript and other client-side files needed for
                       the web interface.
+
 
