@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Main ( main ) where
+module MockMain ( dfterm3 ) where
 
 import ConfiguredDefaults
 
@@ -21,10 +21,8 @@ import Data.Word
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 
-
 import System.Console.GetOpt
 import System.Exit
-import System.Environment
 import System.IO
 
 import System.Posix.Daemon
@@ -84,10 +82,9 @@ isAdminPanelOption :: StartupOption -> Bool
 isAdminPanelOption (AdminPanel _) = True
 isAdminPanelOption _ = False
 
-main :: IO ()
-main = withOpenSSL $ do
+dfterm3 :: [String] -> IO ()
+dfterm3 args = withOpenSSL $ do
     void $ setFileCreationMask 0o077
-    args <- getArgs
     case getOpt Permute options args of
         (options, [], []) -> run options
         (_, e:_, []) -> do

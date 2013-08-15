@@ -17,7 +17,7 @@ cabal-version:       >=1.8
 executable dfterm3
   hs-source-dirs:      src
   ghc-options:         -Wall -threaded -fno-warn-name-shadowing
-  main-is:             Main.hs
+  main-is:             RealMain.hs
   other-modules:       ConfiguredDefaults
   -- So many libraries. How we keep track of them all?
   build-depends:       base ==4.6.*
@@ -54,6 +54,4 @@ executable dfterm3
                       ,blaze-html ==0.6.*
                       ,blaze-markup ==0.5.*
                       ,filepath ==1.3.*
-
-
 
