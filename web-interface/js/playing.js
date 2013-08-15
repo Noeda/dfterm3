@@ -106,22 +106,20 @@ dfterm3_playing = function() {
             }
         }
 
-        login_form.onsubmit = function () {
+        login_form.onsubmit = function (event) {
             var login_name = login_text.value;
             login_text.value = "";
 
             socket.send("\x04" + login_name);
+            event.preventDefault();
         }
 
-        chat_form.onsubmit = function () {
+        chat_form.onsubmit = function (event) {
             var msg = chat_text.value;
             chat_text.value = "";
 
             socket.send("\x03" + msg);
-        }
-
-        var chatMessage = function(msg) {
-            console.log(msg);
+            event.preventDefault();
         }
 
         host_dom_element.appendChild( cover );
@@ -186,6 +184,38 @@ dfterm3_playing = function() {
             terminal_dom_element.appendChild( second_br_element );
             terminal_dom_element.appendChild( go_back_button );
             terminal_dom_element.appendChild( chat_box );
+
+            terminal.getDOMObject().setAttribute("tabindex", 1);
+
+            var key = function(event) {
+                socket.send("\x05" + JSON.stringify(
+                            { which: event.which
+                            , code_point: 0
+                            , shift: event.shiftKey
+                            , alt:  event.altKey
+                            , ctrl: event.ctrlKey }));
+
+                if ( event.which == 39 ||
+                     event.which == 37 ||
+                     event.which == 38 ||
+                     event.which == 40 ||
+                     event.which == 9 ||
+                     event.which == 32 ) {
+                     event.preventDefault();
+                }
+            }
+
+            var keypress = function(event) {
+                socket.send("\x05" + JSON.stringify(
+                            { which: 0
+                            , code_point: event.charCode
+                            , shift: event.shiftKey
+                            , alt:  event.altKey
+                            , ctrl: event.ctrlKey }));
+            }
+
+            terminal.getDOMObject().addEventListener("keypress", keypress, true);
+            terminal.getDOMObject().addEventListener("keydown", key, true);
         }
 
         title.setAttribute("class", "dfterm3_terminal_title_bar");

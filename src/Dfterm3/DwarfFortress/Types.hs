@@ -4,6 +4,7 @@
 
 {-# LANGUAGE DeriveDataTypeable, TemplateHaskell #-}
 {-# LANGUAGE TypeSynonymInstances, MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Dfterm3.DwarfFortress.Types
     ( DwarfFortress(..)
@@ -21,6 +22,11 @@ module Dfterm3.DwarfFortress.Types
     , game )
     where
 
+import Data.Aeson ( (.:) )
+import Control.Monad ( mzero )
+import qualified Data.Aeson as J
+import Data.Word ( Word32 )
+import Control.Applicative
 import Dfterm3.GamePool
 import Dfterm3.CP437Game
 import Data.Typeable ( Typeable )
@@ -46,8 +52,8 @@ data DwarfFortressCP437Changes = CP437 CP437Changes
 
 instance Game DwarfFortressCP437 DwarfFortressInput DwarfFortressCP437Changes
 
-data DwarfFortressInput = Input T.Text
-                          deriving ( Typeable )
+data DwarfFortressInput = DwarfFortressInput !Int !Word32 !Bool !Bool !Bool
+                          deriving ( Eq, Ord, Read, Show, Typeable )
 
 type DwarfFortressInstance = GameInstance DwarfFortressCP437
                                           DwarfFortressInput
@@ -58,4 +64,13 @@ type DwarfFortressClient = GameClient DwarfFortressCP437
 type DwarfFortressProvider = GameProvider DwarfFortressCP437
                                           DwarfFortressInput
                                           DwarfFortressCP437Changes
+
+instance J.FromJSON DwarfFortressInput where
+    parseJSON (J.Object v) = DwarfFortressInput <$>
+                             v .: "which" <*>
+                             v .: "code_point" <*>
+                             v .: "shift" <*>
+                             v .: "alt" <*>
+                             v .: "ctrl"
+    parseJSON _ = mzero
 

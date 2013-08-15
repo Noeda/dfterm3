@@ -39,7 +39,7 @@ import Data.Foldable
 import Data.Maybe ( catMaybes )
 import Data.ProtocolBuffers
 import Data.Array
-import Data.TypeLevel hiding ( Eq, (-), (*) )
+import Data.TypeLevel hiding ( Eq, (-), (*), Bool )
 import Data.Bits
 import GHC.Generics ( Generic )
 import Control.Concurrent
@@ -172,7 +172,7 @@ dfhackConnection pool handle = do
     mask $ \restore -> do
         ( provider, game_instance ) <- registerGame pool
 
-        forkDyingIO (input_processer provider) $ do
+        forkDyingIO (input_processer provider handle) $ do
             let title = "Dwarf Fortress " `T.append` version
 
             finally
@@ -183,11 +183,21 @@ dfhackConnection pool handle = do
                       msg)
                 (unregisterGame game_instance)
   where
-    input_processer :: DwarfFortressProvider -> IO ()
-    input_processer provider = forever $ do
+    input_processer :: DwarfFortressProvider -> Handle -> IO ()
+    input_processer provider handle = forever $ do
         input <- receiveGameInput provider
         case input of
-            Input _ -> return ()
+            DwarfFortressInput code code_point shift alt ctrl ->
+                hSendByteString handle $ B.pack [1] `B.append` S.runPut (do
+                    S.putWord32be (fromIntegral code)
+                    S.putWord32be (fromIntegral code_point)
+                    S.putWord8 (integerify shift)
+                    S.putWord8 (integerify alt)
+                    S.putWord8 (integerify ctrl))
+
+    integerify :: Bool -> Word8
+    integerify True = 1
+    integerify False = 0
 
     rec :: T.Text
         -> DwarfFortressProvider

@@ -3,10 +3,12 @@
 --
 
 {-# LANGUAGE GeneralizedNewtypeDeriving, ViewPatterns #-}
+{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
 
 module Dfterm3.WebsocketClient
     ( websocketClient )
     where
+
 
 import Dfterm3.GamePool
 import Dfterm3.CP437Game
@@ -150,6 +152,10 @@ gameLoop game_client = do
                         liftWS $ sendBinaryData $ case maybe_user of
                             Nothing -> BL.singleton 3
                             Just  _ -> BL.singleton 4
+                        inputLoop tid tid2 ref handle
+            5 -> let Just input =
+                         J.decode $ BL.tail msg
+                  in do liftIO $ sendGameInput input game_client
                         inputLoop tid tid2 ref handle
             _ -> inputLoop tid tid2 ref handle
 
