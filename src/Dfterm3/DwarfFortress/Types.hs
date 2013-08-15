@@ -11,6 +11,7 @@ module Dfterm3.DwarfFortress.Types
     , DwarfFortressCP437(..)
     , DwarfFortressCP437Changes(..)
     , DwarfFortressInput(..)
+    , Input(..)
     , DwarfFortressInstance
     , DwarfFortressClient
     , DwarfFortressProvider
@@ -48,11 +49,15 @@ data DwarfFortressCP437 = DwarfFortressCP437 { _game :: CP437Game
 makeLenses ''DwarfFortressCP437
 
 data DwarfFortressCP437Changes = CP437 CP437Changes
-                                 deriving ( Typeable )
+                               | Playing T.Text
+                               deriving ( Typeable )
 
 instance Game DwarfFortressCP437 DwarfFortressInput DwarfFortressCP437Changes
 
-data DwarfFortressInput = DwarfFortressInput !Int !Word32 !Bool !Bool !Bool
+data Input = Input !Int !Word32 !Bool !Bool !Bool
+             deriving ( Eq, Ord, Read, Show, Typeable )
+
+data DwarfFortressInput = DwarfFortressInput !T.Text !Input
                           deriving ( Eq, Ord, Read, Show, Typeable )
 
 type DwarfFortressInstance = GameInstance DwarfFortressCP437
@@ -65,8 +70,8 @@ type DwarfFortressProvider = GameProvider DwarfFortressCP437
                                           DwarfFortressInput
                                           DwarfFortressCP437Changes
 
-instance J.FromJSON DwarfFortressInput where
-    parseJSON (J.Object v) = DwarfFortressInput <$>
+instance J.FromJSON Input where
+    parseJSON (J.Object v) = Input <$>
                              v .: "which" <*>
                              v .: "code_point" <*>
                              v .: "shift" <*>

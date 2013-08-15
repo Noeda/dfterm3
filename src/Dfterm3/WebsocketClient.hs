@@ -140,12 +140,14 @@ gameLoop game_client = do
             2 -> do liftIO $ killThread tid >> killThread tid2
                     liftIO $ touchIORef ref
                     chooseYourGame
+
             3 -> do whenLoggedIn $ \(userName -> name) ->
                         liftIO $ chat name
                                     (T.take 800 $ T.decodeUtf8 $
                                      BL.toStrict $ BL.tail msg)
                                     (gameClientChannel game_client)
                     inputLoop tid tid2 ref handle
+
             4 -> let name = T.take 20 $
                                 T.decodeUtf8 $ BL.toStrict $ BL.tail msg
                   in do maybe_user <- loginM name
@@ -153,10 +155,16 @@ gameLoop game_client = do
                             Nothing -> BL.singleton 3
                             Just  _ -> BL.singleton 4
                         inputLoop tid tid2 ref handle
+
             5 -> let Just input =
                          J.decode $ BL.tail msg
-                  in do liftIO $ sendGameInput input game_client
+                  in do whenLoggedIn $ \(userName -> name) ->
+                            liftIO $ sendGameInput (DwarfFortressInput
+                                                        name
+                                                        input)
+                                                    game_client
                         inputLoop tid tid2 ref handle
+
             _ -> inputLoop tid tid2 ref handle
 
     chatLoop sink listener = forever $ do
@@ -176,8 +184,13 @@ gameLoop game_client = do
                 sendSink sink $ DataMessage $ Binary $ BL.fromStrict $ if first
                   then encodeStateToBinary new_state
                   else encodeChangesToBinary changes
-                liftIO $ hFlush handle
                 updateLoop sink handle game_client False
+            MessageWithoutState (Playing who) -> do
+                sendSink sink $ DataMessage $ Binary $
+                    BL.singleton 2 `BL.append` J.encode
+                        (fromList [ J.String $ T.pack "who_is_playing"
+                                  , J.String who ])
+                updateLoop sink handle game_client first
             _ -> error "Unexpected message from Dwarf Fortress game."
 
 serializeCellChange :: ((Int, Int), CP437Cell) -> Put

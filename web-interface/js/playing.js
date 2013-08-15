@@ -55,6 +55,8 @@ dfterm3_playing = function() {
             socket.send("\x02");
         }
 
+        title.setAttribute("id", "game_title");
+
         var cover = document.createElement("div");
         cover.setAttribute("class", "cover");
 
@@ -67,6 +69,13 @@ dfterm3_playing = function() {
 
         terminal_dom_element.setAttribute( "class"
                                          , "dfterm3" );
+
+        var who_is_playing_box = document.createElement("h3");
+        var resetWhoIsPlaying = function() {
+            who_is_playing_box.textContent = "No one is currently playing";
+        }
+        resetWhoIsPlaying();
+        who_is_playing_box.setAttribute("id", "who_is_playing");
 
         var chat_box = document.createElement("div");
         var login_form = document.createElement("form");
@@ -162,6 +171,7 @@ dfterm3_playing = function() {
                 return;
             }
             terminal_dom_element.removeChild( terminal.getDOMObject() );
+            terminal_dom_element.removeChild( who_is_playing_box );
             terminal_dom_element.removeChild( title );
             terminal_dom_element.removeChild( br_element );
             terminal_dom_element.removeChild( second_br_element );
@@ -169,6 +179,7 @@ dfterm3_playing = function() {
             terminal_dom_element.removeChild( chat_box );
             terminal = undefined;
 
+            resetWhoIsPlaying();
             clearChat();
         }
 
@@ -179,6 +190,7 @@ dfterm3_playing = function() {
             terminal = dfterm3_terminal.createTerminal( w, h );
 
             terminal_dom_element.appendChild( title );
+            terminal_dom_element.appendChild( who_is_playing_box );
             terminal_dom_element.appendChild( br_element );
             terminal_dom_element.appendChild( terminal.getDOMObject() );
             terminal_dom_element.appendChild( second_br_element );
@@ -320,6 +332,8 @@ dfterm3_playing = function() {
                 handleGameListMessage( msg[1] );
             } else if ( msg[0] == "chat" ) {
                 handleChatMessage( msg[1], msg[2] );
+            } else if ( msg[0] == "who_is_playing" ) {
+                who_is_playing_box.textContent = "Last played by: " + msg[1];
             }
         }
 

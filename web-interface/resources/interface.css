@@ -154,4 +154,12 @@ body {
     margin-left: 2em;
 }
 
+#game_title {
+}
+
+#who_is_playing {
+    padding: 0px;
+    margin: 0px;
+    display: inline;
+}
 
