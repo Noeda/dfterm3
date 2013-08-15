@@ -17,6 +17,9 @@ import Dfterm3.DwarfFortress.Types
 
 import qualified Happstack.Server.SimpleHTTP as H
 import qualified Happstack.Server.FileServe as H
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as BU
 import qualified Data.ByteString.Base64 as B64
 import Control.Monad
@@ -143,7 +146,30 @@ adminPanelAuthenticated admin pool us = msum
         H.decodeBody decodePolicy
         executable <- blook "key"
         registerExecutableWithName executable
-        adminPanelListings pool us
+        adminPanelListings pool us Nothing
+
+    , H.dir "change_password" $ do
+        H.method [ H.POST ]
+        H.decodeBody decodePolicy
+        old_password <- BU.fromString <$> blook "old_password"
+        password <- BU.fromString <$> blook "password"
+        retype_password <- BU.fromString <$> blook "retype_password"
+
+        if B.null password
+          then adminPanelListings pool us (Just "Password cannot be empty.")
+          else do
+
+        maybe_admin <- liftIO $ openAdmin old_password 10 us
+        case maybe_admin of
+            Nothing -> adminPanelListings pool us (Just "Incorrect password.")
+            Just admin -> do
+                liftIO $ expireAdmin admin us
+                if password /= retype_password
+                  then adminPanelListings pool us
+                                          (Just "Passwords don't match.")
+                  else do liftIO $ setAdminPassword (Just password) us
+                          adminPanelListings pool us
+                                            (Just "Password set.")
 
     , modifyGameDecoding $ \executable -> do
         _ <- blook "modify"
@@ -169,7 +195,7 @@ adminPanelAuthenticated admin pool us = msum
         name <- blook "name"
         liftIO $ registerGameByExecutable executable name pool us
 
-    panelListings = adminPanelListings pool us
+    panelListings = adminPanelListings pool us Nothing
     blook = H.body . H.look
 
     withPostDecoding action = do
@@ -183,8 +209,11 @@ adminPanelAuthenticated admin pool us = msum
     modifyGameDecoding action =
         H.dir "modify_game" $ withGameModifyDecoding action
 
-adminPanelListings :: GamePool -> UserSystem -> H.ServerPart H.Response
-adminPanelListings pool us = do
+adminPanelListings :: GamePool
+                   -> UserSystem
+                   -> Maybe T.Text
+                   -> H.ServerPart H.Response
+adminPanelListings pool us maybe_flash = do
     states <- liftIO $ enumerateRunningGames pool
     dfs <- liftIO $ listDwarfFortresses us
 
@@ -203,9 +232,30 @@ adminPanelListings pool us = do
         L.body $
             L.div ! A.class_ "admin_content" $ do
 
+                whenJust maybe_flash $ \flash ->
+                    L.div ! A.class_ "admin_flash" $ L.p (L.toHtml flash)
+
                 L.form ! A.action "logout" !
                          A.method "post" $
                     L.input ! A.type_ "submit" ! A.value "Logout"
+
+                L.div ! A.class_ "admin_password_form" $ do
+                    L.form ! A.action "change_password" !
+                             A.method "post" $ do
+                        L.h3 "Change administrator password:"
+                        L.label "Old password: "
+                        L.br
+                        L.input ! A.name "old_password" ! A.type_ "password"
+                        L.br
+                        L.label "Password: "
+                        L.br
+                        L.input ! A.name "password" ! A.type_ "password"
+                        L.br
+                        L.label "Retype password: "
+                        L.br
+                        L.input ! A.name "retype_password" ! A.type_ "password"
+                        L.br
+                        L.input ! A.type_ "submit" ! A.value "Change password"
 
                 unless (null unregistered_games) $ do
 
