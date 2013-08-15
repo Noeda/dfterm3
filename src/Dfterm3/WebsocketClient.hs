@@ -28,8 +28,10 @@ import Control.Concurrent
 import Control.Monad
 import Control.Lens
 import Control.Monad.Reader
+import Control.Monad.Trans.Maybe
 import Control.Applicative ( (<$>) )
 import Control.Exception
+import Data.List ( find )
 import Data.Word
 import Data.Bits
 import Data.Array
@@ -77,20 +79,13 @@ client = forever chooseYourGame
 -- | Sends a list of games to the client.
 chooseYourGame :: Dfterm3TWS ()
 chooseYourGame = do
-    (games, instances) <- unzip <$> withGamePool
-                              (liftIO . enumerateRunningGames')
     dfs <- withUserSystem $ liftIO . listDwarfFortresses
-
-    let running_executables = fmap (^. (df . dfExecutable)) games
-        playable_games = filter (\x -> x ^. dfExecutable `elem`
-                                            running_executables)
-                                dfs
 
     let bs = J.encode (fromList
             [ J.String $ T.pack "game_list"
             , J.Array $ fromList $
                 zipWith pairify
-                    (fmap (J.String . (^. dfName)) playable_games)
+                    (fmap (J.String . (^. dfName)) dfs)
                     (fmap J.toJSON [(0::Int)..]) ] )
 
     liftWS $ sendBinaryData $ BL.singleton 2 `BL.append` bs
@@ -98,12 +93,40 @@ chooseYourGame = do
     maybe_choice <- receiveChoice
     case maybe_choice of
         Nothing -> chooseYourGame
-        Just choice -> do
-            maybe_client <- liftIO $ playGame (instances !! choice)
-            case maybe_client of
-                Nothing -> chooseYourGame
-                Just client -> gameLoop client
+        Just choice -> choseGame $ dfs !! choice
   where
+    choseGame :: DwarfFortress -> Dfterm3TWS ()
+    choseGame chosen_df = do
+        games_instances <- withGamePool
+                                  (liftIO . enumerateRunningGames')
+
+        let maybe_target = snd <$>
+                           find (\(game, inst) ->
+                                     game ^. (df . dfExecutable) ==
+                                     chosen_df ^. dfExecutable)
+                                 games_instances
+
+        -- TODO: maybe this could be turned into MaybeT or something to get rid
+        -- of the confusing nested case-of structure. Especially if it's going
+        -- to get more complex than this.
+        case maybe_target of
+            Nothing -> do
+                mvar <- liftIO $ newEmptyMVar
+                liftIO $ launchDwarfFortress chosen_df $ putMVar mvar
+                maybe_inst <- liftIO $ takeMVar mvar
+                case maybe_inst of
+                    Just inst -> do
+                        maybe_client <- liftIO $ playGame inst
+                        case maybe_client of
+                            Nothing -> chooseYourGame
+                            Just client -> gameLoop client
+                    Nothing   -> chooseYourGame
+            Just target -> do
+                maybe_client <- liftIO $ playGame target
+                case maybe_client of
+                    Nothing -> chooseYourGame
+                    Just client -> gameLoop client
+
     pairify :: J.Value -> J.Value -> J.Value
     pairify a b = J.Array $ fromList [a, b]
 
