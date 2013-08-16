@@ -4,6 +4,7 @@
 --
 
 {-# LANGUAGE TemplateHaskell, TypeFamilies, DeriveDataTypeable #-}
+{-# LANGUAGE CPP #-}
 
 module Dfterm3.User
     ( openStorage
@@ -34,11 +35,26 @@ import Control.Concurrent ( forkIO, ThreadId, threadDelay )
 import System.Directory
 import Control.Applicative ( (<$>) )
 import Crypto.Scrypt
-import OpenSSL.Random ( randBytes )
 import Data.Time.Clock
 import qualified Data.ByteString as B
 import qualified Data.Text as T
 import qualified Data.Map as M
+
+#ifndef WINDOWS
+import OpenSSL.Random ( randBytes )
+#else
+import System.Random
+
+-- This is not quite secure but at least it works.
+randBytes :: Int -> IO B.ByteString
+randBytes 0 = return B.empty
+randBytes x = do
+    b <- randomIO
+    fmap (B.singleton b `B.append`) $
+         randBytes (x-1)
+#endif
+
+
 
 wasThisFirst :: Update UserSystemState Bool
 wasThisFirst = do

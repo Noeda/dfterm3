@@ -2,7 +2,7 @@
 
 {-# LANGUAGE Rank2Types, DeriveDataTypeable, FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric, OverloadedStrings, TypeSynonymInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses, CPP #-}
 
 module Dfterm3.DwarfFortress
     ( monitorDwarfFortresses
@@ -12,7 +12,11 @@ module Dfterm3.DwarfFortress
     , dfArgs
     , dfWorkingDirectory
 
-    , launchDwarfFortress
+#ifndef WINDOWS
+    , Dfterm3.DwarfFortress.Unix.launchDwarfFortress
+#else
+    , Dfterm3.DwarfFortress.Windows.launchDwarfFortress
+#endif
 
     , enumerateRunningGames
     , enumerateRunningGames' )
@@ -25,6 +29,12 @@ import Dfterm3.Safe
 
 import Dfterm3.DwarfFortress.Types
 import Dfterm3.Util
+
+#ifndef WINDOWS
+import Dfterm3.DwarfFortress.Unix
+#else
+import Dfterm3.DwarfFortress.Windows
+#endif
 
 import System.IO
 import System.IO.Error
@@ -56,14 +66,6 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Network
 
-import System.Posix.Types
-import System.Posix.Process
-import System.Posix.Signals
-import System.Posix.Directory
-import System.Posix.Terminal
-import System.Posix.IO
-import System.Environment
-
 import qualified Data.Serialize.Get as S
 import qualified Data.Serialize.Put as S
 
@@ -74,17 +76,6 @@ instance Exception SilentlyDie
 
 ports :: [Word16]
 ports = [48000..48100]
-
-executingDwarfFortresses :: MVar (S.Set String)
-executingDwarfFortresses = unsafePerformIO $ newMVar S.empty
-{-# NOINLINE executingDwarfFortresses #-}
-
-runningFortresses :: IORef (M.Map ProcessID ( DwarfFortressInstance
-                                            , Maybe DwarfFortressExec) )
-runningFortresses = unsafePerformIO $ newIORef M.empty
-{-# NOINLINE runningFortresses #-}
-
-newtype DwarfFortressExec = DwarfFortressExec (IORef ProcessID)
 
 -- | Monitors system ports for Dwarf Fortress processes and registers them to
 -- the game pool as they are found.
@@ -180,7 +171,7 @@ dfhackConnection pool handle = do
         Just working_dir = getField $ workingDirectory info
         Just df_executable = getField $ executable info
         Just df_pid' = getField $ pid info
-        df_pid = fromIntegral df_pid' :: ProcessID
+        df_pid = fromIntegral df_pid' :: DFPid
         df_info = DwarfFortress (T.unpack df_executable)
                                 []
                                 (T.unpack working_dir)
@@ -195,13 +186,12 @@ dfhackConnection pool handle = do
 
     msg <- hGetMessage handle :: IO ScreenData
 
-    logInfo "Successfully formed a connection to a Dfhack \
-            \Dfterm3 plugin."
+    logInfo $ "Successfully formed a connection to a Dfhack "
+              ++ "Dfterm3 plugin."
     mask $ \restore -> do
         ( provider, game_instance ) <- registerGame pool
 
-        atomicModifyIORef' runningFortresses $ \old ->
-            ( M.insert df_pid (game_instance, Nothing) old, () )
+	trackRunningFortress df_pid
 
         forkDyingIO (input_processer provider handle) $ do
             let title = "Dwarf Fortress " `T.append` version
@@ -214,9 +204,7 @@ dfhackConnection pool handle = do
                       msg)
                 (unregisterGame game_instance)
   where
-    clearPid pid = do
-        atomicModifyIORef' runningFortresses $ \old ->
-            ( M.delete (fromIntegral pid) old, () )
+    clearPid = untrackRunningFortress
 
     input_processer :: DwarfFortressProvider -> Handle -> IO ()
     input_processer provider handle = forever $ do
@@ -315,82 +303,4 @@ detectDFHackScript actual_executable = do
         replaceFileName (takeDirectory ex)
                         "dfhack"
 
-launchDwarfFortress :: DwarfFortress
-                    -> (Maybe DwarfFortressInstance -> IO ())
-                    -> IO ()
-launchDwarfFortress _ action = action Nothing
-
-{- The Linux process launching does not work properly now. Dwarf Fortress
- - freezes.
-    void $ forkIO $ mask $ \restore -> do
-    maybe_pid <- modifyMVar executingDwarfFortresses $ \set ->
-        if S.member executable set
-          then return (set, Nothing)
-          else do
-            env <- getEnvironment
-            print (df^.dfWorkingDirectory)
-
-            (master, slave) <- openPseudoTerminal
-
-            pid <- forkProcess $ do
-                pgid <- createSession
-
-                closeFd 0
-                closeFd 1
-                closeFd 2
-                _ <- dupTo slave 0
-                _ <- dupTo slave 1
-                _ <- dupTo slave 2
-
-                changeWorkingDirectory (df^.dfWorkingDirectory)
-                executeFile executable
-                            True
-                            []
-                            (Just $ [("START_DFTERM3", "1")] ++
-                                    env)
-                exitImmediately (ExitFailure (-1))
-
-            closeFd master
-
-            logInfo $ "Forked process '" ++ executable ++ "' to pid " ++
-                      show pid ++ "."
-            ref <- DwarfFortressExec <$> (newFinalizableIORef pid $ do
-                       reapPid pid)
-            return $ (S.insert executable set, Just (pid, ref))
-
-    case maybe_pid of
-        Just pid -> restore $ wait (43 :: Int) pid
-        Nothing -> action Nothing
-
-  where
-    executable = df^.dfExecutable
-
-    reapPid pid = do
-        logInfo $ "Reaping Dwarf Fortress process " ++ show pid
-        modifyMVar_ executingDwarfFortresses $ return . S.delete executable
-        pid_group <- getProcessGroupIDOf pid
-        signalProcessGroup sigTERM pid_group
-        threadDelay 5000000
-        signalProcessGroup sigKILL pid_group
-        void $ getProcessStatus True False pid
-
-    wait 0 (pid, _) = do
-        logNotice $ "Could not connect to forked Dwarf Fortress " ++ show pid
-                    ++ "."
-        action Nothing
-    wait ticks (pid, ref) = do
-        print ticks
-        threadDelay 500000
-        maybe_df_instance <- atomicModifyIORef' runningFortresses $ \old ->
-                                 case M.lookup pid old of
-                                     Nothing -> ( old, Nothing )
-                                     Just (inst, _) ->
-                                         ( M.insert pid (inst, Just ref) old
-                                         , Just inst )
-
-        case maybe_df_instance of
-            Nothing -> wait (ticks-1) (pid, ref)
-            Just df_instance -> do
-                action (Just df_instance)
--}
 

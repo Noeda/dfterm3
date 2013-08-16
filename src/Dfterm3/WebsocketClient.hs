@@ -4,6 +4,7 @@
 
 {-# LANGUAGE GeneralizedNewtypeDeriving, ViewPatterns #-}
 {-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 
 module Dfterm3.WebsocketClient
     ( websocketClient )
@@ -60,7 +61,16 @@ getHandle = lift ask
 
 websocketClient :: GamePool -> UserSystem -> UserVolatile -> Handle -> IO ()
 websocketClient pool us uv handle = do
+    hSetBuffering handle NoBuffering
+    hSetBinaryMode handle True
+    hFlush handle
+    -- For horrible reasons, Windows needs the buffer size to be 1. 1! The
+    -- reason is misbehaving hGetBufNonBlocking that is used behind the scenes.
+#ifdef WINDOWS
+    let enumerator = enumHandle 1 handle
+#else
     let enumerator = enumHandle 8192 handle
+#endif
     run_ $ enumerator $$
            runWebSocketsHandshake True ar (iterHandle handle)
   where

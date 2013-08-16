@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, CPP #-}
 
 module MockMain ( dfterm3 ) where
 
@@ -14,8 +14,6 @@ import qualified Dfterm3.User as U
 
 import Dfterm3.AdminPanel
 
-import OpenSSL ( withOpenSSL )
-
 import Data.Typeable
 import Data.Word
 import qualified Data.Text.Encoding as T
@@ -25,13 +23,21 @@ import System.Console.GetOpt
 import System.Exit
 import System.IO
 
+#ifndef WINDOWS
 import System.Posix.Daemon
 import System.Posix.Files
+import OpenSSL ( withOpenSSL )
+#endif
 
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
 import Network ( withSocketsDo )
 import Control.Concurrent ( threadDelay, forkIO )
 import Control.Monad ( forever, void, forM_, when )
+
+#ifdef WINDOWS
+withOpenSSL :: IO a -> IO a
+withOpenSSL = id
+#endif
 
 data StartupOption = Websocket !Word16
                    | AdminPanel !Word16
@@ -53,12 +59,14 @@ options = [ Option "w" ["websocket"]
           , Option "h?" ["help"]
             (NoArg ShowHelp)
             "show valid command line options and exit."
+#ifndef WINDOWS
           , Option "d" ["daemon", "daemonize"]
             (OptArg Daemonize "PIDFILE")
             "run as a daemon (background process)."
           , Option [] ["syslog"]
             (NoArg UseSyslog)
             "use syslog for logging."
+#endif
           , Option [] ["admin-password"]
             (NoArg SetAdminPassword)
             "ask for the administrator password and exit."
@@ -67,8 +75,8 @@ options = [ Option "w" ["websocket"]
             "serve administrator panel as a web interface on this port."
           , Option [] ["websocket-http"]
             (ReqArg (WebsocketHTTP . read) "PORT")
-            "serve websocket playing interface as a web interface \
-            \on this port." ]
+            ("serve websocket playing interface as a web interface "
+             ++ "on this port.") ]
 
 isStorageOption :: StartupOption -> Bool
 isStorageOption (StorageLocation _) = True
@@ -84,7 +92,9 @@ isAdminPanelOption _ = False
 
 dfterm3 :: [String] -> IO ()
 dfterm3 args = withOpenSSL $ do
+#ifndef WINDOWS
     void $ setFileCreationMask 0o077
+#endif
     case getOpt Permute options args of
         (options, [], []) -> run options
         (_, e:_, []) -> do
@@ -116,12 +126,14 @@ run options
             stderr
             "Cannot daemonize and set administrator password at the same time."
         exitFailure
+#ifndef WINDOWS
     | should_daemonize = do
         let Daemonize maybe_filepath = head $ filter isDaemonizeOption options
         runDetached maybe_filepath
                     DevNull
                     (run (filter (not . isDaemonizeOption) options))
         exitSuccess
+#endif
     | otherwise = withSocketsDo $ do
         pool <- newGamePool
         run' pool (fmap unwrap . filter isAdminPanelOption $ options)
@@ -186,25 +198,27 @@ showHelp :: IO ()
 showHelp = do
     dir <- defaultStorageDirectory
     putStrLn (usageInfo "dfterm3 [options in any order]" options)
-    putStrLn   "You can specify several WebSocket ports to listen on more \
-               \than one port."
+    putStrLn $ "You can specify several WebSocket ports to listen on more "
+               ++ "than one port."
     putStrLn $ "The default storage directory for the current user is \'" ++
                dir ++
                "\'. " ++
                "Specifying the --storage option overrides the default setting."
-    putStrLn   "If you don't specify the pidfile in any of the daemon options,\
-               \ then no pidfile lock will be used."
-    putStrLn   "If --syslog is not specified, then logging will written to \
-               \standard output.\n"
-    putStrLn   "By default, there is no administrator password. If you want \
-               \to use the administrator interface, you need to set it at \
-               \least once. You can also clear the administrator password \
-               \with this command if you want to disable the administrator \
-               \interface.\n"
-    putStrLn   "The administrator interface is served by listening on the \
-               \local network device 127.0.0.1. This has the implication that \
-               \it cannot be directly accessed from outside the local \
-               \computer.\n"
+#ifndef WINDOWS
+    putStrLn $ "If you don't specify the pidfile in any of the daemon options,"
+               ++ " then no pidfile lock will be used."
+    putStrLn $ "If --syslog is not specified, then logging will written to "
+               ++ "standard output.\n"
+#endif
+    putStrLn $ "By default, there is no administrator password. If you want "
+               ++ "to use the administrator interface, you need to set it at "
+               ++ "least once. You can also clear the administrator password "
+               ++ "with this command if you want to disable the administrator "
+               ++ "interface.\n"
+    putStrLn $ "The administrator interface is served by listening on the "
+               ++ "local network device 127.0.0.1. This has the implication that "
+               ++ "it cannot be directly accessed from outside the local "
+               ++ "computer.\n"
 
 
 setAdminPassword :: U.UserSystem -> IO ()
