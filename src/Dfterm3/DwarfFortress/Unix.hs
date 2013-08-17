@@ -6,6 +6,11 @@ module Dfterm3.DwarfFortress.Unix
     where
 
 import Dfterm3.DwarfFortress.Types
+import Data.IORef
+import Control.Concurrent
+
+import qualified Data.Map as M
+import qualified Data.Set as S
 
 import System.Posix.Types
 import System.Posix.Process
@@ -14,6 +19,7 @@ import System.Posix.Directory
 import System.Posix.Terminal
 import System.Posix.IO
 import System.Environment
+import System.IO.Unsafe
 
 type DFPid = ProcessID
 newtype DwarfFortressExec = DwarfFortressExec (IORef ProcessID)
@@ -21,12 +27,12 @@ newtype DwarfFortressExec = DwarfFortressExec (IORef ProcessID)
 trackRunningFortress :: DFPid -> DwarfFortressInstance -> IO ()
 trackRunningFortress df_pid game_instance =
     atomicModifyIORef' runningFortresses $ \old ->
-	( M.insert df_pid (game_instance, Nothing) old, () )
+        ( M.insert df_pid (game_instance, Nothing) old, () )
 
 untrackRunningFortress :: DFPid -> IO ()
 untrackRunningFortress df_pid =
     atomicModifyIORef' runningFortresses $ \old ->
-	( M.delete (fromIntegral df_pid) old, () )
+        ( M.delete (fromIntegral df_pid) old, () )
 
 executingDwarfFortresses :: MVar (S.Set String)
 executingDwarfFortresses = unsafePerformIO $ newMVar S.empty
