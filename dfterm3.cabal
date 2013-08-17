@@ -70,12 +70,15 @@ library
                       ,filepath ==1.3.*
 
   if os(mingw32)
-      build-depends:
+      build-depends:  process ==1.1.*
+                     ,Win32 ==2.2.*
+      exposed-modules: Dfterm3.DwarfFortress.Windows
       cpp-options:    "-DWINDOWS"
   else
       build-depends:  unix ==2.6.*
                      ,daemons ==0.1.*
                      ,HsOpenSSL ==0.10.*
+      exposed-modules: Dfterm3.DwarfFortress.Unix
 
 executable dfterm3
   hs-source-dirs:      main

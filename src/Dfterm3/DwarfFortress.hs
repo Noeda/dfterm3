@@ -194,7 +194,7 @@ dfhackConnection pool handle = do
     mask $ \restore -> do
         ( provider, game_instance ) <- registerGame pool
 
-	trackRunningFortress df_pid
+	trackRunningFortress df_pid game_instance
 
         forkDyingIO (input_processer provider handle) $ do
             let title = "Dwarf Fortress " `T.append` version

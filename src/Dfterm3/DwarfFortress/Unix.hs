@@ -18,8 +18,8 @@ import System.Environment
 type DFPid = ProcessID
 newtype DwarfFortressExec = DwarfFortressExec (IORef ProcessID)
 
-trackRunningFortress :: DFPid -> IO ()
-trackRunningFortress df_pid =
+trackRunningFortress :: DFPid -> DwarfFortressInstance -> IO ()
+trackRunningFortress df_pid game_instance =
     atomicModifyIORef' runningFortresses $ \old ->
 	( M.insert df_pid (game_instance, Nothing) old, () )
 
