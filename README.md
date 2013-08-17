@@ -2,16 +2,19 @@ Dfterm3
 =======
 
 This is a remote Dwarf Fortress playing software. It quite unfinished but it
-somewhat works. Currently, you can't actually play Dwarf Fortress but you can
-watch it.
+somewhat works. You can play and chat while enjoying Dwarves killing
+themselves.
 
 Installation instructions
 -------------------------
 
-At the moment, only Linux is supported. First, get yourself the Glasgow Haskell
-Compiler. Its name is usually "ghc" in Linux distributions. Make sure you get
-GHC version 7.6.3. Many distributions have a GHC from the 7.4.x series and that
-one is no good. The latest Haskell Platform (2013.2.0.0) uses the correct GHC
+These instructions are for Linux. Not everything works properly in Linux; for
+example, launching Dwarf Fortresses is not implemented.
+
+First, get yourself the Glasgow Haskell Compiler. Its name is usually "ghc" in
+Linux distributions. Make sure you get GHC version 7.6.3. Many distributions
+have a GHC from the 7.4.x series and that one is no good. The latest Haskell
+Platform (2013.2.0.0) uses the correct GHC
 and you might want to grab its binaries if you can't get the required software
 from your Linux distribution.
 
@@ -38,16 +41,12 @@ you want to run it directly from the source directory, you could just do:
 
     $ ln -s ./dist/build/dfterm3/dfterm3 ./
     $ ./dfterm3 --admin-password
-    $ ./dfterm3 --websocket=8000 --websocket-http=8080 --admin-panel=5000
+    $ ./dfterm3
 
 The `--admin-password` command should be run first because there is no
 administrator password yet. You need the administrator panel to configure your
 Dwarf Fortresses. For the command I presented above, the administrator panel
-can be accessed from <http://127.0.0.1:5000/admin/>.
-
-For now, you should use the port 8000 for the `--websocket` option or otherwise
-the HTTP server started with `--websocket-http` option cannot point browsers to
-the correct port.
+can be accessed from <http://127.0.0.1:8081/admin/>.
 
 Now, to configure Dwarf Fortresses, you need Dfhack that has a Dfterm3 plugin
 included. I have put the source code at <https://github.com/Noeda/dfhack.git>.
@@ -67,7 +66,7 @@ write in the name of the game that you want others to see and click
 "Register". The game should now be visible to anyone who points their browser
 at your computer at the port you gave in `--websocket-http`. For example, if
 your IP-address is "1.2.3.4", then the address would be
-<http://1.2.3.4:8080/playing/> (remember the last slash '/').
+<http://1.2.3.4:8080/> (remember the last slash '/').
 
 
 File hierarchy
