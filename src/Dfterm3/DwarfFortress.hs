@@ -187,7 +187,10 @@ dfhackConnection pool handle = do
     msg <- hGetMessage handle :: IO ScreenData
 
     logInfo $ "Successfully formed a connection to a Dfhack "
-              ++ "Dfterm3 plugin."
+              ++ "Dfterm3 plugin. Pid: " ++ show df_pid ++ ", " ++
+	      "working directory: '" ++ T.unpack working_dir ++
+	      "', executable: '" ++ T.unpack df_executable ++ "'."
+
     mask $ \restore -> do
         ( provider, game_instance ) <- registerGame pool
 
