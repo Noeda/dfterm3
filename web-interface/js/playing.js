@@ -282,18 +282,20 @@ dfterm3_playing = function() {
 
             game_list_ul = document.createElement("ul");
             for ( var i = 0; i < msg.length; ++i ) {
-                var li = document.createElement("li");
-                var a = document.createElement("a");
-                a.setAttribute("href", "#");
-                a.textContent = msg[i][0];
-                var x = i;
-                a.onclick = function () {
-                    var choice = msg[x][1];
-                    socket.send("\x01" + choice);
-                    title.textContent = msg[x][0];
-                }
-                li.appendChild(a);
-                game_list_ul.appendChild(li);
+	        var x = function() {
+		    var li = document.createElement("li");
+		    var a = document.createElement("a");
+		    a.setAttribute("href", "#");
+		    a.textContent = msg[i][0];
+		    var choice = msg[i][1];
+		    var content = msg[i][0];
+		    a.onclick = function () {
+			socket.send("\x01" + choice);
+			title.textContent = content;
+		    }
+		    li.appendChild(a);
+		    game_list_ul.appendChild(li);
+		}();
             }
 
             game_list_h1 = document.createElement("h1");
