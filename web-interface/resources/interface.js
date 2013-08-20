@@ -78,5 +78,10 @@ $(function(){
 		.click(function(e){
 			e.preventDefault();
 			change_password_form.show();
+		});
+	$('<button>').insertAfter(change_password_form.node.find('input[type=submit]'))
+		.text('Cancel').click(function(e){
+			e.preventDefault();
+			change_password_form.hide();
 		})
 });
