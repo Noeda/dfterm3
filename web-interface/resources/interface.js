@@ -72,6 +72,12 @@ $(function(){
 	change_password_form = ModalWindow('.admin_password_form');
 	if ($('.admin_flash').length) {
 		change_password_form.show(0);
+		$('.admin_flash').each(function(i, e){
+			if ($(e).text().toLowerCase().indexOf('password set') >= 0) {
+				$(e).css({color: 'green'});
+				setTimeout(change_password_form.hide, 500);
+			}
+		});
 	}
 	change_password_button = $('<button>').text('Change password')
 		.insertBefore($('form[action=logout] input'))
@@ -83,5 +89,5 @@ $(function(){
 		.text('Cancel').click(function(e){
 			e.preventDefault();
 			change_password_form.hide();
-		})
+		});
 });
