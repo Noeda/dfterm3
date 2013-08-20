@@ -14,21 +14,39 @@ body {
     top: 0px;
 }
 
-.dfterm3_connection_status_element_good {
-    background: #eee;
-    color: #5a5;
-    font-weight: bold;
-    padding: 20px;
-    border: 2px solid #000;
+.overlay {
     position: fixed;
-    right: 10px;
-    top: 10px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(128, 128, 128, 0.5);
+    z-index: 1000;
+}
+
+.modal-window {
+    background-color: white;
+    position: fixed;
+    top: 20%;
+    left: 20%;
+    width: 60%;
+    height: 60%;
+    z-index: 1001;
+    padding: 1em;
+    border-radius: 5px;
+}
+
+.dfterm3_connection_status_element_good {
+    color: #5a5;
 }
 
 .dfterm3_connection_status_element_bad {
-    background: #eee;
-    font-weight: bold;
     color: #a55;
+}
+
+.dfterm3_connection_status_element_good, .dfterm3_connection_status_element_bad {
+    color: #5a5;
+    font-weight: bold;
     padding: 20px;
     border: 2px solid #000;
     position: fixed;
@@ -82,6 +100,27 @@ body {
     box-shadow: 5px 5px;
 }
 
+.admin_flash {
+    color: #cc0000;
+}
+
+.button {
+    border: 0px solid black;
+    border-radius: 2;
+    width: 0.75em;
+    height: 0.75em;
+    text-decoration: none;
+    padding: 0 2px;
+}
+
+.button.close {
+    color: red;
+}
+
+.button.close:hover {
+    background-color: #ddcccc;
+}
+
 #admin_submit_button {
     text-align: center;
 }
@@ -130,6 +169,11 @@ body {
 }
 
 .admin_password_form {
+}
+
+form[action="logout"] {
+    display: block;
+    float: right;
 }
 
 .chat {
