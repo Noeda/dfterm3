@@ -5,7 +5,7 @@ name:                dfterm3
 version:             0.2
 synopsis:            Dwarf Fortress remote playing software
 -- description:         
-license:             MIT
+license:             ISC
 license-file:        LICENSE
 author:              Mikko Juola
 maintainer:          mikjuo@gmail.com
