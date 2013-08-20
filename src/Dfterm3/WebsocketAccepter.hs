@@ -37,15 +37,17 @@ listen pool us uv port_number = do
         S.close listener_socket)   -- Don't wait for garbage collector
   where
     listener listener_socket = forever $ do
-        (new_client_handle, host_name, port) <- accept listener_socket
-        logInfo $ "New connection to WebSocket interface on port " ++
-                  show port_number ++ " from " ++ show host_name ++ ":" ++
-                  show port
+        (client_socket, saddr) <- S.accept listener_socket
+
+        logInfo $ "New connection to WebSocket interface from " ++ show saddr
+
+        -- Disable Nagle's algorithm
+        S.setSocketOption client_socket S.NoDelay 1
+        new_client_handle <- S.socketToHandle client_socket ReadWriteMode
 
         forkFinally (websocketClient pool us uv new_client_handle) $ \_ -> do
             hFlush new_client_handle
             hClose new_client_handle
-            logInfo $ "Connection closed on WebSocket interface on port " ++
-                      show port_number ++ " to " ++ show host_name ++ ":" ++
-                      show port
+            logInfo $ "Connection closed on WebSocket interface from " ++
+                      show saddr
 
