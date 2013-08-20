@@ -14,6 +14,28 @@ body {
     top: 0px;
 }
 
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(128, 128, 128, 0.5);
+    z-index: 1000;
+}
+
+.modal-window {
+    background-color: white;
+    position: fixed;
+    top: 20%;
+    left: 20%;
+    width: 60%;
+    height: 60%;
+    z-index: 1001;
+    padding: 1em;
+    border-radius: 5px;
+}
+
 .dfterm3_connection_status_element_good {
     color: #5a5;
 }
