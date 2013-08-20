@@ -78,6 +78,10 @@ body {
     box-shadow: 5px 5px;
 }
 
+.admin_flash {
+    color: #cc0000;
+}
+
 #admin_submit_button {
     text-align: center;
 }
@@ -126,6 +130,11 @@ body {
 }
 
 .admin_password_form {
+}
+
+form[action="logout"] {
+    display: block;
+    float: right;
 }
 
 .chat {
