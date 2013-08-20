@@ -232,9 +232,9 @@ adminPanelListings pool us maybe_flash = do
             L.meta ! A.charset "utf-8"
             L.link ! A.href "resources/interface.css" ! A.rel "stylesheet" !
                      A.type_ "text/css" ! A.title "Interface style"
-            L.script ! A.src "resources/interface.js" !
-                       A.type_ "text/javascript" $ ""
             L.script ! A.src "http://code.jquery.com/jquery-latest.js" !
+                       A.type_ "text/javascript" $ ""
+            L.script ! A.src "resources/interface.js" !
                        A.type_ "text/javascript" $ ""
         L.body $
             L.div ! A.class_ "admin_content" $ do
