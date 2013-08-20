@@ -232,11 +232,12 @@ adminPanelListings pool us maybe_flash = do
             L.meta ! A.charset "utf-8"
             L.link ! A.href "resources/interface.css" ! A.rel "stylesheet" !
                      A.type_ "text/css" ! A.title "Interface style"
+            L.script ! A.src "http://code.jquery.com/jquery-latest.js" !
+                       A.type_ "text/javascript" $ ""
+            L.script ! A.src "resources/interface.js" !
+                       A.type_ "text/javascript" $ ""
         L.body $
             L.div ! A.class_ "admin_content" $ do
-
-                whenJust maybe_flash $ \flash ->
-                    L.div ! A.class_ "admin_flash" $ L.p (L.toHtml flash)
 
                 L.form ! A.action "logout" !
                          A.method "post" $
@@ -245,7 +246,12 @@ adminPanelListings pool us maybe_flash = do
                 L.div ! A.class_ "admin_password_form" $ do
                     L.form ! A.action "change_password" !
                              A.method "post" $ do
+
                         L.h3 "Change administrator password:"
+
+                        whenJust maybe_flash $ \flash ->
+                            L.div ! A.class_ "admin_flash" $ L.p (L.toHtml flash)
+
                         L.label "Old password: "
                         L.br
                         L.input ! A.name "old_password" ! A.type_ "password"
