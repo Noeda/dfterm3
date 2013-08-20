@@ -15,20 +15,16 @@ body {
 }
 
 .dfterm3_connection_status_element_good {
-    background: #eee;
     color: #5a5;
-    font-weight: bold;
-    padding: 20px;
-    border: 2px solid #000;
-    position: fixed;
-    right: 10px;
-    top: 10px;
 }
 
 .dfterm3_connection_status_element_bad {
-    background: #eee;
-    font-weight: bold;
     color: #a55;
+}
+
+.dfterm3_connection_status_element_good, .dfterm3_connection_status_element_bad {
+    color: #5a5;
+    font-weight: bold;
     padding: 20px;
     border: 2px solid #000;
     position: fixed;
