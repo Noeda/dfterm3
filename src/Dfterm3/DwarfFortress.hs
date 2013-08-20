@@ -130,14 +130,10 @@ data Introduction = Introduction
 
 instance Decode Introduction
 
-data ScreenData = ScreenData
-    { width :: Optional D5 (Value Word32)
-    , height :: Optional D6 (Value Word32)
-    , screenCP437 :: Optional D7 (Value B.ByteString)
-    , colors :: Optional D8 (Value B.ByteString) }
-    deriving ( Generic, Show )
-
-instance Decode ScreenData
+data ScreenData = ScreenData { width :: !Word32
+                             , height :: !Word32
+                             , screenData :: !B.ByteString
+                             , colorData :: !B.ByteString }
 
 hGetOrDie :: Handle -> Int -> IO B.ByteString
 hGetOrDie _ 0          = return B.empty
@@ -147,14 +143,30 @@ hGetOrDie handle bytes = do
       then error "Connection lost."
       else return result
 
-hGetMessage :: Decode a => Handle -> IO a
+hGetMessage :: Decode a => Handle -> IO (Either a ScreenData)
 hGetMessage handle = do
     len_bs <- hGetOrDie handle (sizeOf (undefined :: Word32))
     let Right len = S.runGet S.getWord32be len_bs
-    msg <- hGetOrDie handle (fromIntegral len)
-    case S.runGet decodeMessage msg of
-        Left _ -> error "Malformed data received from Dfhack to Dfterm3."
-        Right x -> return x
+    is_protobuf_msg <- antiIntegerify . B.head <$> hGetOrDie handle 1
+    if is_protobuf_msg
+       then do msg <- hGetOrDie handle (fromIntegral len)
+               case S.runGet decodeMessage msg of
+                 Left _ -> error $ "Malformed data received from Dfhack " ++
+                                   "to Dfterm3."
+                 Right x -> return $ Left x
+       else Right <$> hGetScreenData handle
+
+hGetScreenData :: Handle -> IO ScreenData
+hGetScreenData handle = do
+    Right w <- get32
+    Right h <- get32
+    let data_size = fromIntegral $ w*h
+    chars <- hGetOrDie handle data_size
+    colors <- hGetOrDie handle data_size
+    return $ ScreenData w h chars colors
+  where
+    get32 = S.runGet S.getWord32be <$>
+                hGetOrDie handle (sizeOf (undefined :: Word32))
 
 hSendByteString :: Handle -> B.ByteString -> IO ()
 hSendByteString handle bytestring = do
@@ -166,7 +178,7 @@ hSendByteString handle bytestring = do
 
 dfhackConnection :: GamePool -> Handle -> IO ()
 dfhackConnection pool handle = do
-    info <- hGetMessage handle :: IO Introduction
+    Left info <- hGetMessage handle :: IO (Either Introduction ScreenData)
     let Just version = getField $ dfVersion info
         Just working_dir = getField $ workingDirectory info
         Just df_executable = getField $ executable info
@@ -183,18 +195,17 @@ dfhackConnection pool handle = do
     cookie_contents <- readMagicCookieFile (T.unpack working_dir ++
                                             "/.dfterm3-cookie")
     hSendByteString handle cookie_contents
-
-    msg <- hGetMessage handle :: IO ScreenData
+    Right msg <- hGetMessage handle :: IO (Either Introduction ScreenData)
 
     logInfo $ "Successfully formed a connection to a Dfhack "
               ++ "Dfterm3 plugin. Pid: " ++ show df_pid ++ ", " ++
-	      "working directory: '" ++ T.unpack working_dir ++
-	      "', executable: '" ++ T.unpack df_executable ++ "'."
+              "working directory: '" ++ T.unpack working_dir ++
+              "', executable: '" ++ T.unpack df_executable ++ "'."
 
     mask $ \restore -> do
         ( provider, game_instance ) <- registerGame pool
 
-	trackRunningFortress df_pid game_instance
+        trackRunningFortress df_pid game_instance
 
         forkDyingIO (input_processer provider handle) $ do
             let title = "Dwarf Fortress " `T.append` version
@@ -233,19 +244,16 @@ dfhackConnection pool handle = do
         -> ScreenData
         -> IO ()
     rec title provider changer df_info msg = do
-        let Just cp437Data = getField $ screenCP437 msg
-            Just colorsData = getField $ colors msg
-            Just w = getField $ width msg
-            Just h = getField $ height msg
+        let cp437Data = screenData msg
+            colorsData = colorData msg
+            w = width msg
+            h = height msg
 
             assocs = [(fromIntegral x, fromIntegral y) |
                       y <- [0..h-1], x <- [0..w-1]]
             assocs_len = fromIntegral $ w*h
-            Right chars =
-                flip S.runGet cp437Data $ replicateM assocs_len S.getWord8
-            Right clrs =
-                flip S.runGet colorsData $ replicateM assocs_len S.getWord8
-
+            chars = B.unpack cp437Data
+            clrs = B.unpack colorsData
 
             cp437game = newCP437Game title $
                             array ( (0, 0)
@@ -256,8 +264,15 @@ dfhackConnection pool handle = do
                    (changer cp437game)
                    provider
 
+        Right next_message <- hGetMessage handle
+            :: IO (Either Introduction ScreenData)
+
         rec title provider (CP437 . findCP437Changes cp437game) df_info
-            =<< hGetMessage handle
+            next_message
+
+antiIntegerify :: Word8 -> Bool
+antiIntegerify 0 = False
+antiIntegerify _ = True
 
 cp437nator :: Word8 -> Word8 -> CP437Cell
 cp437nator character_code colors =
