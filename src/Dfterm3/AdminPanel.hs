@@ -239,9 +239,6 @@ adminPanelListings pool us maybe_flash = do
         L.body $
             L.div ! A.class_ "admin_content" $ do
 
-                whenJust maybe_flash $ \flash ->
-                    L.div ! A.class_ "admin_flash" $ L.p (L.toHtml flash)
-
                 L.form ! A.action "logout" !
                          A.method "post" $
                     L.input ! A.type_ "submit" ! A.value "Logout"
@@ -249,7 +246,12 @@ adminPanelListings pool us maybe_flash = do
                 L.div ! A.class_ "admin_password_form" $ do
                     L.form ! A.action "change_password" !
                              A.method "post" $ do
+
                         L.h3 "Change administrator password:"
+
+                        whenJust maybe_flash $ \flash ->
+                            L.div ! A.class_ "admin_flash" $ L.p (L.toHtml flash)
+
                         L.label "Old password: "
                         L.br
                         L.input ! A.name "old_password" ! A.type_ "password"
