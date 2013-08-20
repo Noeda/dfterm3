@@ -82,6 +82,23 @@ body {
     color: #cc0000;
 }
 
+.button {
+    border: 0px solid black;
+    border-radius: 2;
+    width: 0.75em;
+    height: 0.75em;
+    text-decoration: none;
+    padding: 0 2px;
+}
+
+.button.close {
+    color: red;
+}
+
+.button.close:hover {
+    background-color: #ddcccc;
+}
+
 #admin_submit_button {
     text-align: center;
 }
