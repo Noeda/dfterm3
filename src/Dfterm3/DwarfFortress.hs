@@ -189,7 +189,6 @@ dfhackConnection pool handle = do
                                 (T.unpack working_dir)
                                 T.empty
 
-    print df_pid
     flip finally (clearPid df_pid) $ do
 
     cookie_contents <- readMagicCookieFile (T.unpack working_dir ++
