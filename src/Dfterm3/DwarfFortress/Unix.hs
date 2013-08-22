@@ -60,7 +60,6 @@ launchDwarfFortress df action =
           then return (set, Nothing)
           else do
             env <- getEnvironment
-            print (df^.dfWorkingDirectory)
 
             (master, slave) <- openPseudoTerminal
 
@@ -78,7 +77,7 @@ launchDwarfFortress df action =
                 _ <- executeFile executable
                                  True
                                  []
-                                 (Just $ ("START_DFTERM3", "1"):env)
+                                 (Just $ env++[("START_DFTERM3", "1")])
                 exitImmediately (ExitFailure (-1))
 
             closeFd master
@@ -109,7 +108,6 @@ launchDwarfFortress df action =
                     ++ "."
         action Nothing
     wait ticks (pid, ref) = do
-        print ticks
         threadDelay 500000
         maybe_df_instance <- atomicModifyIORef' runningFortresses $ \old ->
                                  case M.lookup pid old of
