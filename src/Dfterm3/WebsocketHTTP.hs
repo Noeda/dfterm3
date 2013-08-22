@@ -17,8 +17,8 @@ startWebsocketHTTP port =
     H.simpleHTTP (H.nullConf { H.port = fromIntegral port }) $
         msum [ playing
              , do H.nullDir
-                  H.movedPermanently ("playing/") $
-                      H.toResponse ("Redirecting...") ]
+                  H.movedPermanently "playing/" $
+                      H.toResponse "Redirecting..." ]
   where
     playing = H.dir "playing" $
         msum [ H.dir "resources" $ H.serveDirectory H.DisableBrowsing []

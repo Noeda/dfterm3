@@ -18,7 +18,6 @@ import Dfterm3.DwarfFortress.Types
 import qualified Happstack.Server.SimpleHTTP as H
 import qualified Happstack.Server.FileServe as H
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as BU
 import qualified Data.ByteString.Base64 as B64
@@ -225,93 +224,104 @@ adminPanelListings pool us maybe_flash = do
                 not $ any (\y -> y^.dfExecutable == x^.dfExecutable) dfs)
                    (fmap _df states)
 
-    H.ok $ H.toResponse $ do
-    L.html $ do
-        L.head $ do
-            L.title (L.toHtml ("Dfterm3 Admin Panel" :: String))
-            L.meta ! A.charset "utf-8"
-            L.link ! A.href "resources/interface.css" ! A.rel "stylesheet" !
-                     A.type_ "text/css" ! A.title "Interface style"
-            L.script ! A.src "http://code.jquery.com/jquery-latest.js" !
-                       A.type_ "text/javascript" $ ""
-            L.script ! A.src "resources/interface.js" !
-                       A.type_ "text/javascript" $ ""
-        L.body $
+    H.ok $ H.toResponse $
+        heading $
             L.div ! A.class_ "admin_content" $ do
+                logout_form
+                password_form
 
-                L.form ! A.action "logout" !
-                         A.method "post" $
-                    L.input ! A.type_ "submit" ! A.value "Logout"
+                unless (null unregistered_games) $
+                    list_of_unregistered_games unregistered_games
 
-                L.div ! A.class_ "admin_password_form" $ do
-                    L.form ! A.action "change_password" !
-                             A.method "post" $ do
+                list_of_registered_games dfs
 
-                        L.h3 "Change administrator password:"
+  where
+    heading rest =
+        L.html $ do
+            L.head $ do
+                L.title (L.toHtml ("Dfterm3 Admin Panel" :: String))
+                L.meta ! A.charset "utf-8"
+                L.link ! A.href "resources/interface.css" ! A.rel "stylesheet" !
+                         A.type_ "text/css" ! A.title "Interface style"
+                L.script ! A.src "http://code.jquery.com/jquery-latest.js" !
+                           A.type_ "text/javascript" $ ""
+                L.script ! A.src "resources/interface.js" !
+                           A.type_ "text/javascript" $ ""
+            L.body rest
 
-                        whenJust maybe_flash $ \flash ->
-                            L.div ! A.class_ "admin_flash" $ L.p (L.toHtml flash)
+    logout_form =
+        L.form ! A.action "logout" !
+                 A.method "post" $
+            L.input ! A.type_ "submit" ! A.value "Logout"
 
-                        L.label "Old password: "
-                        L.br
-                        L.input ! A.name "old_password" ! A.type_ "password"
-                        L.br
-                        L.label "Password: "
-                        L.br
-                        L.input ! A.name "password" ! A.type_ "password"
-                        L.br
-                        L.label "Retype password: "
-                        L.br
-                        L.input ! A.name "retype_password" ! A.type_ "password"
-                        L.br
-                        L.input ! A.type_ "submit" ! A.value "Change password"
+    password_form =
+        L.div ! A.class_ "admin_password_form" $
+            L.form ! A.action "change_password" !
+                     A.method "post" $ do
 
-                unless (null unregistered_games) $ do
+                L.h3 "Change administrator password:"
 
-                    L.div ! A.class_ "admin_title_unregistered" $
-                        L.h3 "Unconfigured, running Dwarf Fortress games"
-                    L.br
-                    L.ul $
-                        forM_ unregistered_games $ \name ->
-                            L.li $
-                                L.form ! A.action "register_game" !
-                                         A.method "post" $ do
-                                    L.input ! A.type_ "hidden" !
-                                              A.name "key" !
-                                              A.value (L.toValue
-                                                  (name ^. dfExecutable))
-                                    L.input ! A.type_ "submit" ! A.value "Add"
-                                    L.toHtml (name ^. dfExecutable)
-                                    L.span ! A.class_ "game_name" $
-                                        L.input ! A.type_ "text" !
-                                                  A.name "name" !
-                                                  A.value "Dwarf Fortress"
+                whenJust maybe_flash $ \flash ->
+                    L.div ! A.class_ "admin_flash" $ L.p (L.toHtml flash)
 
-                if null dfs
-                  then L.h3 "No registered Dwarf Fortresses"
-                  else
-                    L.div ! A.class_ "admin_title_registered" $
-                        L.h3 "Registered Dwarf Fortress games"
+                L.label "Old password: "
                 L.br
+                L.input ! A.name "old_password" ! A.type_ "password"
+                L.br
+                L.label "Password: "
+                L.br
+                L.input ! A.name "password" ! A.type_ "password"
+                L.br
+                L.label "Retype password: "
+                L.br
+                L.input ! A.name "retype_password" ! A.type_ "password"
+                L.br
+                L.input ! A.type_ "submit" ! A.value "Change password"
 
-                L.ul $
-                    forM_ dfs $ \df ->
-                        L.li $
-                            L.form ! A.action "modify_game" !
-                                     A.method "post" $ do
-                                L.input ! A.type_ "hidden" !
-                                          A.name "key" !
-                                          A.value (L.toValue
-                                              (df ^. dfExecutable))
-                                L.input ! A.type_ "submit" ! A.name "modify" !
-                                          A.value "Modify"
-                                L.input ! A.type_ "submit" ! A.name "unregister" !
-                                          A.value "Unregister"
-                                L.toHtml (df ^. dfExecutable)
-                                L.span ! A.class_ "game_name" $
-                                    L.input ! A.type_ "text" !
-                                              A.name "name" !
-                                              A.value
-                                                  (L.toValue $ df ^. dfName)
+    list_of_unregistered_games unregistered_games = do
+        L.div ! A.class_ "admin_title_unregistered" $
+            L.h3 "Unconfigured, running Dwarf Fortress games"
+        L.br
+        L.ul $
+            forM_ unregistered_games $ \name ->
+                L.li $
+                    L.form ! A.action "register_game" !
+                             A.method "post" $ do
+                        L.input ! A.type_ "hidden" !
+                                  A.name "key" !
+                                  A.value (L.toValue
+                                      (name ^. dfExecutable))
+                        L.input ! A.type_ "submit" ! A.value "Add"
+                        L.toHtml (name ^. dfExecutable)
+                        L.span ! A.class_ "game_name" $
+                            L.input ! A.type_ "text" !
+                                      A.name "name" !
+                                      A.value "Dwarf Fortress"
+    list_of_registered_games dfs = do
+        if null dfs
+          then L.h3 "No registered Dwarf Fortresses"
+          else
+            L.div ! A.class_ "admin_title_registered" $
+                L.h3 "Registered Dwarf Fortress games"
+        L.br
 
+        L.ul $
+            forM_ dfs $ \df ->
+                L.li $
+                    L.form ! A.action "modify_game" !
+                             A.method "post" $ do
+                        L.input ! A.type_ "hidden" !
+                                  A.name "key" !
+                                  A.value (L.toValue
+                                      (df ^. dfExecutable))
+                        L.input ! A.type_ "submit" ! A.name "modify" !
+                                  A.value "Modify"
+                        L.input ! A.type_ "submit" ! A.name "unregister" !
+                                  A.value "Unregister"
+                        L.toHtml (df ^. dfExecutable)
+                        L.span ! A.class_ "game_name" $
+                            L.input ! A.type_ "text" !
+                                      A.name "name" !
+                                      A.value
+                                          (L.toValue $ df ^. dfName)
 

@@ -6,8 +6,13 @@ module Dfterm3.DwarfFortress.Unix
     where
 
 import Dfterm3.DwarfFortress.Types
+import Dfterm3.Logging
+import Dfterm3.Util ( newFinalizableIORef )
 import Data.IORef
 import Control.Concurrent
+import Control.Lens
+import Control.Exception ( mask )
+import Control.Applicative ( (<$>) )
 
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -18,8 +23,10 @@ import System.Posix.Signals
 import System.Posix.Directory
 import System.Posix.Terminal
 import System.Posix.IO
+import System.Exit
 import System.Environment
 import System.IO.Unsafe
+import Control.Monad
 
 type DFPid = ProcessID
 newtype DwarfFortressExec = DwarfFortressExec (IORef ProcessID)
@@ -46,10 +53,7 @@ runningFortresses = unsafePerformIO $ newIORef M.empty
 launchDwarfFortress :: DwarfFortress
                     -> (Maybe DwarfFortressInstance -> IO ())
                     -> IO ()
-launchDwarfFortress _ action = action Nothing
-
-{- The Linux process launching does not work properly now. Dwarf Fortress
- - freezes.
+launchDwarfFortress df action =
     void $ forkIO $ mask $ \restore -> do
     maybe_pid <- modifyMVar executingDwarfFortresses $ \set ->
         if S.member executable set
@@ -61,7 +65,7 @@ launchDwarfFortress _ action = action Nothing
             (master, slave) <- openPseudoTerminal
 
             pid <- forkProcess $ do
-                pgid <- createSession
+                _ <- createSession
 
                 closeFd 0
                 closeFd 1
@@ -71,20 +75,18 @@ launchDwarfFortress _ action = action Nothing
                 _ <- dupTo slave 2
 
                 changeWorkingDirectory (df^.dfWorkingDirectory)
-                executeFile executable
-                            True
-                            []
-                            (Just $ [("START_DFTERM3", "1")] ++
-                                    env)
+                _ <- executeFile executable
+                                 True
+                                 []
+                                 (Just $ ("START_DFTERM3", "1"):env)
                 exitImmediately (ExitFailure (-1))
 
             closeFd master
 
             logInfo $ "Forked process '" ++ executable ++ "' to pid " ++
                       show pid ++ "."
-            ref <- DwarfFortressExec <$> (newFinalizableIORef pid $ do
-                       reapPid pid)
-            return $ (S.insert executable set, Just (pid, ref))
+            ref <- DwarfFortressExec <$> newFinalizableIORef pid (reapPid pid)
+            return (S.insert executable set, Just (pid, ref))
 
     case maybe_pid of
         Just pid -> restore $ wait (43 :: Int) pid
@@ -118,6 +120,5 @@ launchDwarfFortress _ action = action Nothing
 
         case maybe_df_instance of
             Nothing -> wait (ticks-1) (pid, ref)
-            Just df_instance -> do
+            Just df_instance ->
                 action (Just df_instance)
--}

@@ -1,10 +1,11 @@
--- | This module implements the user and security model.
+-- | Tis module implements the user and security model.
 --
 -- The `acid-state` package is used to back all this data on the filesystem.
 --
 
 {-# LANGUAGE TemplateHaskell, TypeFamilies, DeriveDataTypeable #-}
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Dfterm3.User
     ( openStorage

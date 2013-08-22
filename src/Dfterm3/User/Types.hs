@@ -7,6 +7,7 @@
 -- generate SafeCopy instances and lenses.
 
 {-# LANGUAGE TemplateHaskell, StandaloneDeriving, DeriveDataTypeable #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Dfterm3.User.Types
     ( UserSystem(..)

@@ -2,8 +2,8 @@
 -- talks to the client on the other side of the WebSocket connection.
 --
 
-{-# LANGUAGE GeneralizedNewtypeDeriving, ViewPatterns #-}
-{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE CPP #-}
 
 module Dfterm3.WebsocketClient
@@ -29,7 +29,6 @@ import Control.Concurrent
 import Control.Monad
 import Control.Lens
 import Control.Monad.Reader
-import Control.Monad.Trans.Maybe
 import Control.Applicative ( (<$>) )
 import Control.Exception
 import Data.List ( find )
@@ -111,7 +110,7 @@ chooseYourGame = do
                                   (liftIO . enumerateRunningGames')
 
         let maybe_target = snd <$>
-                           find (\(game, inst) ->
+                           find (\(game, _) ->
                                      game ^. (df . dfExecutable) ==
                                      chosen_df ^. dfExecutable)
                                  games_instances
@@ -121,7 +120,7 @@ chooseYourGame = do
         -- to get more complex than this.
         case maybe_target of
             Nothing -> do
-                mvar <- liftIO $ newEmptyMVar
+                mvar <- liftIO newEmptyMVar
                 liftIO $ launchDwarfFortress chosen_df $ putMVar mvar
                 maybe_inst <- liftIO $ takeMVar mvar
                 case maybe_inst of

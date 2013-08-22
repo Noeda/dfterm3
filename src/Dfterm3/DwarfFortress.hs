@@ -38,17 +38,14 @@ import Dfterm3.DwarfFortress.Windows
 
 import System.IO
 import System.IO.Error
-import System.IO.Unsafe ( unsafePerformIO )
 import System.Random
 import System.FilePath
-import System.Exit
 
 import Control.Applicative ( (<$>) )
 import Control.Monad.IO.Class ( liftIO )
 import Control.Lens
 import Data.Word ( Word8, Word16, Word32, Word64 )
 import Foreign.Storable ( sizeOf )
-import Data.IORef
 import Data.Typeable
 import Data.Foldable
 import Data.Maybe ( catMaybes )
@@ -58,12 +55,10 @@ import Data.TypeLevel hiding ( Eq, (-), (*), Bool )
 import Data.Bits
 import GHC.Generics ( Generic )
 import Control.Concurrent
-import Control.Monad ( forever, void, forM, replicateM )
+import Control.Monad ( forever, void, forM )
 import Control.Exception
 import qualified Data.Text as T
 import qualified Data.ByteString as B
-import qualified Data.Map as M
-import qualified Data.Set as S
 import Network
 
 import qualified Data.Serialize.Get as S
@@ -250,7 +245,6 @@ dfhackConnection pool handle = do
 
             assocs = [(fromIntegral x, fromIntegral y) |
                       y <- [0..h-1], x <- [0..w-1]]
-            assocs_len = fromIntegral $ w*h
             chars = B.unpack cp437Data
             clrs = B.unpack colorsData
 

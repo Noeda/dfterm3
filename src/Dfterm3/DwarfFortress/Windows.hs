@@ -54,29 +54,28 @@ launchDwarfFortress df action = void $ forkIO $ mask $ \restore -> do
           else do
             env <- getEnvironment
             (_, _, _, process) <-
-              createProcess (CreateProcess { cmdspec = RawCommand executable []
-                                           , cwd = Just $ df^.dfWorkingDirectory
-                                           , env = Just (env ++
-					                 [("START_DFTERM3", "1")])
-                                           , std_in = Inherit
-                                           , std_out = Inherit
-                                           , std_err = Inherit
-                                           , close_fds = True
-                                           , create_group = True })
-            ref <- newFinalizableIORef process $ do
-                reapProcess process
+              createProcess CreateProcess { cmdspec = RawCommand executable []
+                                          , cwd = Just $ df^.dfWorkingDirectory
+                                          , env = Just (env ++
+                                                        [("START_DFTERM3", "1")])
+                                          , std_in = Inherit
+                                          , std_out = Inherit
+                                          , std_err = Inherit
+                                          , close_fds = True
+                                          , create_group = True }
+            ref <- newFinalizableIORef process $ reapProcess process
             handle <- withProcessHandle process $ \proc ->
-	              return $ case proc of
-	                           OpenHandle handle -> (proc, Just handle)
-				   ClosedHandle _ -> (proc, Nothing)
+                      return $ case proc of
+                                   OpenHandle handle -> (proc, Just handle)
+                                   ClosedHandle _ -> (proc, Nothing)
             case handle of
-	        Nothing -> return (S.insert executable set, Nothing)
-		Just handle' -> do
-		    real_pid <- W.getProcessId handle'
-		    logInfo $ "Forked process '" ++ executable ++ "' to pid " ++
-		              show real_pid
-		    return (S.insert executable set, Just (real_pid, ref))
-    
+                Nothing -> return (S.insert executable set, Nothing)
+                Just handle' -> do
+                    real_pid <- W.getProcessId handle'
+                    logInfo $ "Forked process '" ++ executable ++ "' to pid " ++
+                              show real_pid
+                    return (S.insert executable set, Just (real_pid, ref))
+
     case maybe_pid_ref of
         Just pid_ref -> restore $ wait (43 :: Int) pid_ref
         Nothing -> action Nothing
@@ -102,6 +101,6 @@ launchDwarfFortress df action = void $ forkIO $ mask $ \restore -> do
 
         case maybe_df_instance of
             Nothing -> wait (ticks-1) (pid, ref)
-            Just df_instance -> do
+            Just df_instance ->
                 action (Just df_instance)
 
