@@ -163,15 +163,17 @@ $(function(){
 	$('form[action=logout] input[type=submit]').click(function(e){
 		e.preventDefault();
 		var form = $(this).closest('form');
-		var conf = ModalConfirmation({
-			title: 'Log out',
-			text: 'Are you sure you want to log out now?',
-			ok_text: 'Log out',
-			ok: function(){
-				form.submit();
-			}
-		});
-		conf.show();
+		if (!_I.logout_confirmation) {
+			_I.logout_confirmation = ModalConfirmation({
+				title: 'Log out',
+				text: 'Are you sure you want to log out now?',
+				ok_text: 'Log out',
+				ok: function(){
+					form.submit();
+				}
+			});
+		}
+		_I.logout_confirmation.show();
 	});
 	
 	window.Interface = _I;
