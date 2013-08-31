@@ -11,6 +11,7 @@ module Dfterm3.DwarfFortress.Types
     , DwarfFortressCP437(..)
     , DwarfFortressCP437Changes(..)
     , DwarfFortressInput(..)
+    , KeyDirection(..)
     , Input(..)
     , DwarfFortressInstance
     , DwarfFortressClient
@@ -57,7 +58,10 @@ instance Game DwarfFortressCP437 DwarfFortressInput DwarfFortressCP437Changes
 data Input = Input !Int !Word32 !Bool !Bool !Bool
              deriving ( Eq, Ord, Read, Show, Typeable )
 
-data DwarfFortressInput = DwarfFortressInput !T.Text !Input
+data KeyDirection = Up | Down | UpAndDown
+                    deriving ( Eq, Ord, Read, Show, Typeable )
+
+data DwarfFortressInput = DwarfFortressInput !KeyDirection !T.Text !Input
                           deriving ( Eq, Ord, Read, Show, Typeable )
 
 type DwarfFortressInstance = GameInstance DwarfFortressCP437

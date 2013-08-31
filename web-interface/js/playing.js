@@ -212,26 +212,28 @@ dfterm3_playing = function() {
 
             terminal.getDOMObject().setAttribute("tabindex", 1);
 
-            var key = function(event) {
-                socket.send("\x05" + JSON.stringify(
-                            { which: event.which
-                            , code_point: 0
-                            , shift: event.shiftKey
-                            , alt:  event.altKey
-                            , ctrl: event.ctrlKey }));
+            var key = function(prefix) {
+                return function(event) {
+                    socket.send(prefix + JSON.stringify(
+                                { which: event.which
+                                , code_point: 0
+                                , shift: event.shiftKey
+                                , alt:  event.altKey
+                                , ctrl: event.ctrlKey }));
 
-                if ( event.which == 39 ||
-                     event.which == 37 ||
-                     event.which == 38 ||
-                     event.which == 40 ||
-                     event.which == 9 ||
-                     event.which == 32 ) {
-                     event.preventDefault();
+                    if ( event.which == 39 ||
+                         event.which == 37 ||
+                         event.which == 38 ||
+                         event.which == 40 ||
+                         event.which == 9 ||
+                         event.which == 32 ) {
+                         event.preventDefault();
+                    }
                 }
             }
 
             var keypress = function(event) {
-                socket.send("\x05" + JSON.stringify(
+                socket.send("\x07" + JSON.stringify(
                             { which: 0
                             , code_point: event.charCode
                             , shift: event.shiftKey
@@ -240,7 +242,11 @@ dfterm3_playing = function() {
             }
 
             terminal.getDOMObject().addEventListener("keypress", keypress, true);
-            terminal.getDOMObject().addEventListener("keydown", key, true);
+            terminal.getDOMObject().addEventListener( "keydown"
+                                                    , key("\x05"), true);
+            terminal.getDOMObject().addEventListener("keyup"
+                                                    , key("\x06")
+                                                    , true);
         }
 
         title.setAttribute("class", "dfterm3_terminal_title_bar");

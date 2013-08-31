@@ -210,14 +210,22 @@ dfhackConnection pool handle = do
     input_processer provider handle = forever $ do
         input <- receiveGameInput provider
         case input of
-            DwarfFortressInput who (Input code code_point shift alt ctrl) -> do
+            DwarfFortressInput key_direction
+                               who
+                               (Input code code_point shift alt ctrl) -> do
                 hSendByteString handle $ B.pack [1] `B.append` S.runPut (do
                     S.putWord32be (fromIntegral code)
                     S.putWord32be (fromIntegral code_point)
+                    S.putWord8 (directionIntegerify key_direction)
                     S.putWord8 (integerify shift)
                     S.putWord8 (integerify alt)
                     S.putWord8 (integerify ctrl))
                 updateGameWithoutState (Playing who) provider
+
+    directionIntegerify :: KeyDirection -> Word8
+    directionIntegerify Up = 0
+    directionIntegerify Down = 1
+    directionIntegerify UpAndDown = 2
 
     integerify :: Bool -> Word8
     integerify True = 1

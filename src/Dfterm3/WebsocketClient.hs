@@ -188,16 +188,20 @@ gameLoop game_client = do
                             Just  _ -> BL.singleton 4
                         inputLoop tid tid2 ref handle
 
-            5 -> let Just input =
-                         J.decode $ BL.tail msg
-                  in do whenLoggedIn $ \(userName -> name) ->
-                            liftIO $ sendGameInput (DwarfFortressInput
-                                                        name
-                                                        input)
-                                                    game_client
-                        inputLoop tid tid2 ref handle
+            5 -> inputMsg msg Down      >> inputLoop tid tid2 ref handle
+            6 -> inputMsg msg Up        >> inputLoop tid tid2 ref handle
+            7 -> inputMsg msg UpAndDown >> inputLoop tid tid2 ref handle
 
             _ -> inputLoop tid tid2 ref handle
+      where
+        inputMsg msg up_or_down =
+            let Just input = J.decode $ BL.tail msg
+             in whenLoggedIn $ \(userName -> name) ->
+                    liftIO $ sendGameInput (DwarfFortressInput
+                                            up_or_down
+                                            name
+                                            input)
+                                           game_client
 
     chatLoop sink listener = forever $ do
         (user_name, msg) <- listen listener
