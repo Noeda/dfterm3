@@ -280,22 +280,35 @@ dfterm3_playing = function() {
         var startGameList = function(msg) {
             stopGameList();
 
+            var loading_in_progress = false;
+
             game_list_ul = document.createElement("ul");
             for ( var i = 0; i < msg.length; ++i ) {
-	        var x = function() {
-		    var li = document.createElement("li");
-		    var a = document.createElement("a");
-		    a.setAttribute("href", "#");
-		    a.textContent = msg[i][0];
-		    var choice = msg[i][1];
-		    var content = msg[i][0];
-		    a.onclick = function () {
-			socket.send("\x01" + choice);
-			title.textContent = content;
-		    }
-		    li.appendChild(a);
-		    game_list_ul.appendChild(li);
-		}();
+                var x = function() {
+                    var li = document.createElement("li");
+                    var a = document.createElement("a");
+                    var loading_indicator = document.createElement("span");
+                    loading_indicator.setAttribute( "class"
+                                                  , "loading_indicator" );
+                    loading_indicator.style.display = "none";
+                    loading_indicator.textContent = "starting up...";
+
+                    a.setAttribute("href", "#");
+                    a.textContent = msg[i][0];
+                    var choice = msg[i][1];
+                    var content = msg[i][0];
+                    a.onclick = function () {
+                        if ( loading_in_progress === false ) {
+                            loading_in_progress = true;
+                            socket.send("\x01" + choice);
+                            title.textContent = content;
+                            loading_indicator.style.display = "inline";
+                        }
+                    }
+                    li.appendChild(a);
+                    li.appendChild(loading_indicator);
+                    game_list_ul.appendChild(li);
+                }();
             }
 
             game_list_h1 = document.createElement("h1");

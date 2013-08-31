@@ -211,3 +211,9 @@ form[action="logout"] {
     display: inline;
 }
 
+.loading_indicator {
+    color: #000;
+    font-size: small;
+    margin-left: 2em;
+}
+
