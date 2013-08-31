@@ -211,7 +211,7 @@ run options
                logWarning $ "WebSocket HTTP server started but there are "
                             ++ "no WebSocket servers specified."
           where
-            websocket_ports = (catMaybes $ fmap isWebsocketPortOption options)
+            websocket_ports = catMaybes $ fmap isWebsocketPortOption options
 
         applyOption _ _ _ = return ()
 
