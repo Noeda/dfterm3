@@ -1,4 +1,6 @@
-module Dfterm3.DwarfFortress.Windows
+{-# LANGUAGE CPP #-}
+
+module Dfterm3.DwarfFortress.Process
     ( launchDwarfFortress
     , trackRunningFortress
     , untrackRunningFortress
@@ -15,8 +17,8 @@ import Control.Monad
 import Control.Exception ( mask )
 import System.Process
 import System.Process.Internals
-import qualified System.Win32.Process as W
 import System.Environment
+import System.IO
 import System.IO.Unsafe ( unsafePerformIO )
 import Data.IORef
 
@@ -44,6 +46,16 @@ runningFortresses :: IORef (M.Map DFPid ( DwarfFortressInstance
 runningFortresses = unsafePerformIO $ newIORef M.empty
 {-# NOINLINE runningFortresses #-}
 
+standardStreamHandles :: IO StdStream
+#ifdef WINDOWS
+standardStreamHandles = return Inherit
+#else
+standardStreamHandles = do
+    handle <- openFile "/dev/null" ReadWriteMode
+    hSetBuffering handle NoBuffering
+    return $ UseHandle handle
+#endif
+
 launchDwarfFortress :: DwarfFortress
                     -> (Maybe DwarfFortressInstance -> IO ())
                     -> IO ()
@@ -53,14 +65,15 @@ launchDwarfFortress df action = void $ forkIO $ mask $ \restore -> do
           then return (set, Nothing)
           else do
             env <- getEnvironment
+            handle <- standardStreamHandles
             (_, _, _, process) <-
               createProcess CreateProcess { cmdspec = RawCommand executable []
                                           , cwd = Just $ df^.dfWorkingDirectory
                                           , env = Just (env ++
                                                         [("START_DFTERM3", "1")])
-                                          , std_in = Inherit
-                                          , std_out = Inherit
-                                          , std_err = Inherit
+                                          , std_in = handle
+                                          , std_out = handle
+                                          , std_err = handle
                                           , close_fds = True
                                           , create_group = True }
             ref <- newFinalizableIORef process $ reapProcess process
@@ -71,7 +84,11 @@ launchDwarfFortress df action = void $ forkIO $ mask $ \restore -> do
             case handle of
                 Nothing -> return (S.insert executable set, Nothing)
                 Just handle' -> do
+#ifdef WINDOWS
                     real_pid <- W.getProcessId handle'
+#else
+                    let real_pid = fromIntegral handle'
+#endif
                     logInfo $ "Forked process '" ++ executable ++ "' to pid " ++
                               show real_pid
                     return (S.insert executable set, Just (real_pid, ref))

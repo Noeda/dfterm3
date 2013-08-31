@@ -2,7 +2,7 @@
 
 {-# LANGUAGE Rank2Types, DeriveDataTypeable, FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric, OverloadedStrings, TypeSynonymInstances #-}
-{-# LANGUAGE MultiParamTypeClasses, CPP #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Dfterm3.DwarfFortress
     ( monitorDwarfFortresses
@@ -12,11 +12,7 @@ module Dfterm3.DwarfFortress
     , dfArgs
     , dfWorkingDirectory
 
-#ifndef WINDOWS
-    , Dfterm3.DwarfFortress.Unix.launchDwarfFortress
-#else
-    , Dfterm3.DwarfFortress.Windows.launchDwarfFortress
-#endif
+    , Dfterm3.DwarfFortress.Process.launchDwarfFortress
 
     , enumerateRunningGames
     , enumerateRunningGames' )
@@ -30,11 +26,7 @@ import Dfterm3.Safe
 import Dfterm3.DwarfFortress.Types
 import Dfterm3.Util
 
-#ifndef WINDOWS
-import Dfterm3.DwarfFortress.Unix
-#else
-import Dfterm3.DwarfFortress.Windows
-#endif
+import Dfterm3.DwarfFortress.Process
 
 import System.IO
 import System.IO.Error
