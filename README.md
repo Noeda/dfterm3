@@ -9,7 +9,7 @@ Installation instructions
 -------------------------
 
 These instructions are for Linux. Not everything works properly in Linux; for
-example, launching Dwarf Fortresses is not implemented.
+example, launching Dwarf Fortresses has problems.
 
 First, get yourself the Glasgow Haskell Compiler. Its name is usually "ghc" in
 Linux distributions. Make sure you get GHC version 7.6.3. Many distributions
