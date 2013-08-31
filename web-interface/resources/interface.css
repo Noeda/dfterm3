@@ -211,6 +211,11 @@ form[action="logout"] {
     display: inline;
 }
 
+#game_is_gone_box {
+    color: #f55;
+    display: inline;
+}
+
 .loading_indicator {
     color: #000;
     font-size: small;

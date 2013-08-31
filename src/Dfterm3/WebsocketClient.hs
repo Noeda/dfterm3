@@ -211,7 +211,8 @@ gameLoop game_client = do
     updateLoop sink handle game_client first = do
         msg <- liftIO $ receiveGameUpdates game_client
         case msg of
-            GameUnregistered -> return ()
+            GameUnregistered ->
+                sendSink sink $ DataMessage $ Binary $ BL.singleton 5
             Message (_game -> new_state) (CP437 changes) -> do
                 sendSink sink $ DataMessage $ Binary $ BL.fromStrict $ if first
                   then encodeStateToBinary new_state

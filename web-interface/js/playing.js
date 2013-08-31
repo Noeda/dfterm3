@@ -13,6 +13,7 @@ dfterm3_playing = function() {
     var CHAT_MESSAGE = 3;
     var LOGIN_REJECTED = 3;
     var LOGIN_ACCEPTED = 4;
+    var GAME_IS_GONE = 5;
 
     var logged_in = false;
 
@@ -69,6 +70,13 @@ dfterm3_playing = function() {
 
         terminal_dom_element.setAttribute( "class"
                                          , "dfterm3" );
+
+        var game_is_gone_box = document.createElement("h3");
+        game_is_gone_box.setAttribute("id", "game_is_gone_box");
+        game_is_gone_box.textContent = "Game is not active";
+        game_is_gone_box.style.display = "none";
+
+
 
         var who_is_playing_box = document.createElement("h3");
         var resetWhoIsPlaying = function() {
@@ -172,6 +180,7 @@ dfterm3_playing = function() {
             }
             terminal_dom_element.removeChild( terminal.getDOMObject() );
             terminal_dom_element.removeChild( who_is_playing_box );
+            terminal_dom_element.removeChild( game_is_gone_box );
             terminal_dom_element.removeChild( title );
             terminal_dom_element.removeChild( br_element );
             terminal_dom_element.removeChild( second_br_element );
@@ -190,12 +199,16 @@ dfterm3_playing = function() {
             terminal = dfterm3_terminal.createTerminal( w, h );
 
             terminal_dom_element.appendChild( title );
+            terminal_dom_element.appendChild( game_is_gone_box );
             terminal_dom_element.appendChild( who_is_playing_box );
             terminal_dom_element.appendChild( br_element );
             terminal_dom_element.appendChild( terminal.getDOMObject() );
             terminal_dom_element.appendChild( second_br_element );
             terminal_dom_element.appendChild( go_back_button );
             terminal_dom_element.appendChild( chat_box );
+
+            who_is_playing_box.style.display = "inline";
+            game_is_gone_box.style.display = "none";
 
             terminal.getDOMObject().setAttribute("tabindex", 1);
 
@@ -383,6 +396,9 @@ dfterm3_playing = function() {
                     status( "Logged in", false );
                     chat_text.style.display = "block";
                     login_form.style.display = "none";
+                } else if ( array_view[0] == GAME_IS_GONE ) {
+                    game_is_gone_box.style.display = "inline";
+                    who_is_playing_box.style.display = "none";
                 }
             }
         }
