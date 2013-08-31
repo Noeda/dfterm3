@@ -17,6 +17,9 @@ import Control.Monad
 import Control.Exception ( mask )
 import System.Process
 import System.Process.Internals
+#ifdef WINDOWS
+import qualified System.Win32.Process as W
+#endif
 import System.Environment
 import System.IO
 import System.IO.Unsafe ( unsafePerformIO )
