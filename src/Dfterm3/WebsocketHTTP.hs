@@ -7,13 +7,18 @@ module Dfterm3.WebsocketHTTP
     where
 
 import qualified Happstack.Server as H
+import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.UTF8 as B
 import Data.Word
 import Control.Monad
 
 -- | Starts the HTTP service. Does not return so you might want to wrap it
 -- inside `forkIO`.
-startWebsocketHTTP :: Word16 -> IO ()
-startWebsocketHTTP port =
+--
+-- Give the list of ports as the second argument to tell which ports are open
+-- for WebSockets.
+startWebsocketHTTP :: Word16 -> [Word16] -> IO ()
+startWebsocketHTTP port websocket_ports =
     H.simpleHTTP (H.nullConf { H.port = fromIntegral port }) $
         msum [ playing
              , do H.nullDir
@@ -25,6 +30,17 @@ startWebsocketHTTP port =
                                    "./web-interface/resources"
              , H.dir "js" $ H.serveDirectory H.DisableBrowsing []
                                    "./web-interface/js"
+             , H.dir "dfterm3_ports.js" $
+                   H.ok $ H.toResponseBS (B.fromString "text/javascript")
+                                         javascripting
              , H.serveFile (H.asContentType "text/html")
                            "./web-interface/playing.html" ]
+
+    javascripting = B.fromStrict $ B.fromString $
+        "dfterm3_ports = { websocket: [" ++ concatting ++ "] }\n"
+
+    concatting | null websocket_ports = ""
+               | otherwise = show (head websocket_ports) ++
+                             concatMap (\x -> ", " ++ show x)
+                                       (tail websocket_ports)
 

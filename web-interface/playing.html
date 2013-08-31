@@ -9,6 +9,8 @@
     <body>
         <div id="myterm">
         </div>
+        <script src="dfterm3_ports.js">
+        </script>
         <script src="js/timing.js">
         </script>
         <script src="js/terminal.js">
@@ -16,13 +18,26 @@
         <script src="js/playing.js">
         </script>
         <script>
+            // getRandomInt() from MDN
+            function getRandomInt(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) + min);
+            }
             if ( dfterm3_playing.websockets_are_supported === false ) {
                 document.writeln("No WebSocket support. You can not play. " +
                                  "You terrible person.");
             } else {
-                dfterm3_playing.play( "ws://" + window.location.hostname +
-                                      ":8000"
-                                    , document.getElementById("myterm") );
+                var ports = dfterm3_ports.websocket;
+                if ( ports.length === 0 ) {
+                    document.writeln("No WebSocket ports open on this " +
+                                     "server. You can not play. " +
+                                     "The server admin is a terrible person.");
+                } else {
+                    dfterm3_playing.play( "ws://" + window.location.hostname +
+                                          ":" +
+                                          ports[getRandomInt( 0
+                                                            , ports.length-1)]
+                                        , document.getElementById("myterm") );
+                }
             }
         </script>
     </body>

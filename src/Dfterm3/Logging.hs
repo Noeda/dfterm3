@@ -8,6 +8,7 @@ module Dfterm3.Logging
     ( initializeLogging
     , logInfo
     , logNotice
+    , logWarning
     , LoggingSystem(..) )
     where
 
@@ -72,4 +73,11 @@ logNotice :: String -> IO ()
 logNotice msg = do
     res <- stamp msg
     noticeM rootLoggerName res
+
+-- | Something unusual is going on that implies something may be wrong.
+-- However, operation can continue.
+logWarning :: String -> IO ()
+logWarning msg = do
+    res <- stamp msg
+    warningM rootLoggerName res
 
