@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                dfterm3
-version:             0.2
+version:             0.3
 synopsis:            Dwarf Fortress remote playing software
 -- description:         
 license:             ISC
