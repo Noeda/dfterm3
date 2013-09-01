@@ -90,10 +90,15 @@ dfterm3_playing = function() {
         var login_text = document.createElement("input");
         var login_title = document.createElement("h3");
         var login_label = document.createElement("label");
+        var login_hint = document.createElement("h4");
+
+        login_hint.setAttribute("id", "login_hint");
+        login_hint.textContent = "You need to login before you can play.";
         login_form.setAttribute("action", "#chat");
         login_text.setAttribute("type", "text");
         login_label.textContent = "User name:";
         login_form.appendChild( login_title );
+        login_form.appendChild( login_hint );
         login_form.appendChild(login_label);
         login_form.appendChild( login_text );
         login_text.setAttribute("id", "login_text");

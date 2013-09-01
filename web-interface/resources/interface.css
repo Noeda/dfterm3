@@ -194,6 +194,10 @@ form[action="logout"] {
     width: 20em;
 }
 
+#login_hint {
+    font-size: small;
+}
+
 .chat_from_who {
     font-weight: bold;
 }
