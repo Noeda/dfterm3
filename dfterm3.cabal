@@ -4,19 +4,27 @@
 name:                dfterm3
 version:             0.3
 synopsis:            Dwarf Fortress remote playing software
--- description:         
+
+description:         This software lets you play Dwarf Fortress through a
+                     web interface. It supports multiple users playing the same
+                     game by sharing input to the game (or fighting over it).
+
 license:             ISC
 license-file:        LICENSE
 author:              Mikko Juola
 maintainer:          mikjuo@gmail.com
--- copyright:           
+copyright:           Copyright (c) 2013 Mikko Juola
 category:            Network
 build-type:          Simple
 cabal-version:       >=1.8
 
+source-repository head
+  type:              git
+  location:          https://github.com/Noeda/dfterm3.git
+
 library
   hs-source-dirs:      src
-  ghc-options:         -Wall -threaded -fno-warn-name-shadowing
+  ghc-options:         -Wall -fno-warn-name-shadowing
   exposed-modules:     MockMain
                        ConfiguredDefaults
                        Dfterm3.AdminPanel
