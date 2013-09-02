@@ -40,6 +40,7 @@ import Data.Time.Clock
 import qualified Data.ByteString as B
 import qualified Data.Text as T
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 #ifndef WINDOWS
 import OpenSSL.Random ( randBytes )
@@ -82,21 +83,37 @@ getAdminSessionByID session_id = M.lookup session_id <$> view adminSessions
 
 registerNewDwarfFortress :: DwarfFortress
                          -> Update UserSystemState AddingResult
-registerNewDwarfFortress df = do
-    old_df <- M.lookup exec <$> use dwarfFortresses
+registerNewDwarfFortress new_df = do
+    old_df <- M.lookup exec <$> use dwarfFortressesWithPerms
     case old_df of
-        Nothing -> do dwarfFortresses %= M.insert exec df
+        Nothing -> do dwarfFortressesWithPerms %= M.insert exec df_with_perms
                       return New
-        Just _  -> do dwarfFortresses %= M.insert exec df
-                      return Replaced
+        Just _  -> do dwarfFortressesWithPerms %= M.adjust (set rawDf new_df)
+                                                           exec
+                      return Modified
   where
-    exec = df^.dfExecutable
+    exec = new_df^.dfExecutable
+
+    df_with_perms = DwarfFortressWithPerms
+            { _rawDf = new_df
+            , _dfEnabled = False
+            , _allowWatchingByDefault = True
+            , _allowPlayingByDefault = True
+            , _allowChattingByDefault = True
+            , _allowedWatchers = S.empty
+            , _allowedPlayers = S.empty
+            , _allowedChatters = S.empty
+            , _disallowedWatchers = S.empty
+            , _disallowedPlayers = S.empty
+            , _disallowedChatters = S.empty }
 
 unregisterSomeDwarfFortress :: String -> Update UserSystemState ()
-unregisterSomeDwarfFortress executable = dwarfFortresses %= M.delete executable
+unregisterSomeDwarfFortress executable =
+    dwarfFortressesWithPerms %= M.delete executable
 
 listAllDwarfFortresses :: Query UserSystemState [DwarfFortress]
-listAllDwarfFortresses = M.elems <$> view dwarfFortresses
+listAllDwarfFortresses =
+    (fmap _rawDf) . M.elems <$> view dwarfFortressesWithPerms
 
 expireSomeAdmin :: Admin -> Update UserSystemState ()
 expireSomeAdmin (Admin _ session_id) =
@@ -113,9 +130,10 @@ makeAcidic ''UserSystemState [ 'wasThisFirst, 'getEncryptedAdminPassword
 
 emptyUserSystem :: UserSystemState
 emptyUserSystem = UserSystemState { _first = True
-                                  , _dwarfFortresses = M.empty
+                                  , _dwarfFortressesWithPerms = M.empty
                                   , _adminPassword = Nothing
-                                  , _adminSessions = M.empty }
+                                  , _adminSessions = M.empty
+                                  , _registeredUsers = M.empty }
 
 -- | Opens a storage for the system and returns a handle to the user system.
 --
@@ -237,7 +255,10 @@ registerDwarfFortress executable args working_directory name (UserSystem st) =
  do executable' <- canonicalizePath executable
     working_directory' <- canonicalizePath working_directory
     update st $ RegisterNewDwarfFortress $
-        DwarfFortress executable' args working_directory' (T.pack name)
+        DwarfFortress executable'
+                      args
+                      working_directory'
+                      (T.pack name)
 
 -- | Unregisters a Dwarf Fortress from the system. The given argument is the
 -- executable name of the Dwarf Fortress.

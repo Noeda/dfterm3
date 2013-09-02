@@ -134,7 +134,7 @@ registerGameByExecutable executable name pool us = do
                    "'" ++ executable ++ "', working directory '" ++
                    (target^.dfWorkingDirectory) ++ "' and name '" ++
                    "Dwarf Fortress'"
-            Replaced -> logNotice $
+            Modified -> logNotice $
                    "Modified a Dwarf Fortress game with executable path " ++
                    "'" ++ executable ++ "', working directory '" ++
                    (target^.dfWorkingDirectory) ++ "' and name '" ++
