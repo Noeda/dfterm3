@@ -3,11 +3,13 @@
 module Dfterm3.Dfterm3State.Internal.Transactions
     ( TryPublishGame(..)
     , TryRemoveGame(..)
+    , GetPublishedGames(..)
     , GetEncryptedAdminPassword(..)
     , SetEncryptedAdminPassword(..)
     , MaybeAddSessionByPassword(..)
     , IsValidSessionID(..)
-    , ChangePassword(..) )
+    , ChangePassword(..)
+    , InvalidateSessionID(..) )
     where
 
 import Dfterm3.GameSubscription.Internal.Transactions
@@ -20,5 +22,7 @@ makeAcidic ''PersistentStorageState [ 'tryPublishGame, 'tryRemoveGame
                                     , 'setEncryptedAdminPassword
                                     , 'maybeAddSessionByPassword
                                     , 'isValidSessionID
-                                    , 'changePassword ]
+                                    , 'changePassword
+                                    , 'invalidateSessionID
+                                    , 'getPublishedGames ]
 

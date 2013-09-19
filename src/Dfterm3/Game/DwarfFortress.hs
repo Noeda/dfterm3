@@ -7,7 +7,12 @@
 
 module Dfterm3.Game.DwarfFortress
     ( monitorDwarfFortresses
-    , DwarfFortressPersistent() )
+    , DwarfFortressPersistent()
+    , mkDwarfFortressPersistent
+    , executable
+    , workingDirectory
+    , args
+    , customName )
     where
 
 import Dfterm3.GameSubscription
@@ -45,6 +50,7 @@ import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
 import Control.Applicative
+import Control.Lens
 import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as B8
 import qualified Data.Text as T
@@ -67,8 +73,8 @@ type DFPid = Word64
 
 data Introduction = Introduction
     { dfVersion        :: Optional D1 (Value T.Text)
-    , workingDirectory :: Optional D2 (Value T.Text)
-    , executable       :: Optional D3 (Value T.Text)
+    , introductionWorkingDirectory :: Optional D2 (Value T.Text)
+    , introductionExecutable       :: Optional D3 (Value T.Text)
     , pid              :: Optional D4 (Value Word64) }
     deriving ( Generic, Show )
 
@@ -87,6 +93,15 @@ data DwarfFortressPersistent =
                             , _customName :: T.Text }
     deriving ( Eq, Ord, Show, Read, Typeable )
 deriveSafeCopy 0 'base ''DwarfFortressPersistent
+makeLenses ''DwarfFortressPersistent
+
+mkDwarfFortressPersistent :: FilePath
+                          -> FilePath
+                          -> [String]
+                          -> T.Text
+                          -> DwarfFortressPersistent
+mkDwarfFortressPersistent =
+    DwarfFortressPersistent
 
 data KeyDirection = Up | Down | UpAndDown
                     deriving ( Eq, Ord, Read, Show, Typeable )
@@ -100,9 +115,11 @@ instance PublishableGame DwarfFortressPersistent where
         { _pid :: !Word64
         , _handle :: !Handle
         , _executableInstance :: FilePath
+        , _workingDirectoryInstance :: FilePath
         , _inputsChan :: TChan (GameInputs DwarfFortressPersistent)
         , _outputsChan :: TChan (GameChangesets DwarfFortressPersistent)
         , _deathChan :: TChan ()
+        , _dfVersionInstance :: T.Text
         , _cleaner :: FinRef }
 
     data GameInputs DwarfFortressPersistent =
@@ -113,10 +130,24 @@ instance PublishableGame DwarfFortressPersistent where
 
     uniqueKey = B8.fromString . _executable
     uniqueInstanceKey = S.runPut . S.putWord64be . _pid
+    uniqueGameWideKey _ = B8.fromString "Dfterm3.Game.DwarfFortress"
     gameName game = T.pack "Dwarf Fortress: " `T.append` _customName game
     stopInstance = finalizeFinRef . _cleaner
 
+    lookForGames = lookForDwarfFortresses
+
     procureInstance_ = procureDwarfFortress
+
+lookForDwarfFortresses :: IO [DwarfFortressPersistent]
+lookForDwarfFortresses =
+    fmap (fmap toDFP) $ M.elems <$> readIORef runningDwarfFortresses
+  where
+    toDFP ginstance =
+        DwarfFortressPersistent
+            { _executable = _executableInstance ginstance
+            , _workingDirectory = _workingDirectoryInstance ginstance
+            , _args = []
+            , _customName = _dfVersionInstance ginstance }
 
 -- | Monitors system ports for Dwarf Fortresses. You run this once and then
 -- forget about it. You need to run it for Dfterm3 to be able to use Dwarf
@@ -176,9 +207,10 @@ runningDwarfFortresses = unsafePerformIO $ newIORef M.empty
 dfhackConnection :: Handle -> IO ()
 dfhackConnection handle = do
     Left info <- hGetMessage handle :: IO (Either Introduction ScreenData)
-    let Just working_dir = getField $ workingDirectory info
-        Just df_executable' = getField $ executable info
+    let Just working_dir = getField $ introductionWorkingDirectory info
+        Just df_executable' = getField $ introductionExecutable info
         Just df_pid' = getField $ pid info
+        Just df_version = getField $ dfVersion info
         df_pid = fromIntegral df_pid' :: DFPid
 
     df_executable <- T.pack <$> detectDFHackScript (T.unpack df_executable')
@@ -213,9 +245,13 @@ dfhackConnection handle = do
                                                 , _cleaner = finref
                                                 , _executableInstance =
                                                     T.unpack df_executable
+                                                , _workingDirectoryInstance =
+                                                    T.unpack working_dir
                                                 , _inputsChan = input_channel
                                                 , _outputsChan = output_channel
                                                 , _deathChan = death_channel
+                                                , _dfVersionInstance =
+                                                    df_version
                                                 }
 
     atomicModifyIORef' runningDwarfFortresses $ \old ->

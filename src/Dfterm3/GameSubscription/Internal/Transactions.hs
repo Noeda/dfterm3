@@ -5,6 +5,7 @@ module Dfterm3.GameSubscription.Internal.Transactions
     (
       tryPublishGame
     , tryRemoveGame
+    , getPublishedGames
     )
     where
 
@@ -17,11 +18,11 @@ import qualified Data.Map.Strict as M
 import qualified Data.ByteString as B
 
 publishedGames' :: Lens' PersistentStorageState
-                         (M.Map B.ByteString B.ByteString)
+                         (M.Map B.ByteString (B.ByteString, B.ByteString))
 publishedGames' = gameSubscriptions . publishedGames
 
 tryPublishGame :: B.ByteString
-               -> B.ByteString
+               -> (B.ByteString, B.ByteString)
                -> Update PersistentStorageState Bool
 tryPublishGame key game = do
     old_games <- use publishedGames'
@@ -38,4 +39,10 @@ tryRemoveGame key = do
     return $ case M.lookup key old_games of
                  Nothing -> False
                  Just  _ -> True
+
+getPublishedGames :: Query PersistentStorageState (M.Map
+                                                   B.ByteString
+                                                   ( B.ByteString
+                                                   , B.ByteString ))
+getPublishedGames = view publishedGames'
 

@@ -3,7 +3,8 @@ module Dfterm3.Admin.Internal.Transactions
     , setEncryptedAdminPassword
     , maybeAddSessionByPassword
     , isValidSessionID
-    , changePassword )
+    , changePassword
+    , invalidateSessionID )
     where
 
 import Dfterm3.Dfterm3State.Internal.Types
@@ -72,4 +73,7 @@ isValidSessionID sid now = do
     return $ case M.lookup sid s of
         Nothing -> False
         Just (Session _ expiry_time) -> now <= expiry_time
+
+invalidateSessionID :: SessionID -> Update PersistentStorageState ()
+invalidateSessionID sid = admin . sessions %= M.delete sid
 

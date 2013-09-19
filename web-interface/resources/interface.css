@@ -100,8 +100,12 @@ body {
     box-shadow: 5px 5px;
 }
 
-.admin_flash {
-    color: #cc0000;
+.admin_flash_failure {
+    color: #c00;
+}
+
+.admin_flash_success {
+    color: #0c0;
 }
 
 .button {

@@ -51,7 +51,10 @@ module Dfterm3.GameSubscription
 
       -- * Running subscription actions
     , SubscriptionIO()
-    , runSubscriptionIO )
+    , runSubscriptionIO
+      -- * Misc
+    , lookForPotentialGames
+    , lookForPublishedGames )
     where
 
 import Dfterm3.Dfterm3State.Internal.Transactions
@@ -59,10 +62,11 @@ import Dfterm3.GameSubscription.Internal.Types
 import Dfterm3.GameSubscription.Internal.SubscriptionIO
 import Dfterm3.Util
 
-import Data.SafeCopy ( safePut )
+import Data.SafeCopy ( safePut, safeGet )
 import Data.Typeable ( Typeable )
 import Data.Acid
 import Data.Serialize.Put
+import Data.Serialize.Get
 import Data.IORef
 import Data.Foldable ( forM_ )
 import qualified Data.Text as T
@@ -97,7 +101,8 @@ publishGame game = do
     SubscriptionIO $ do
         replaced_something <- liftIO $
             update state $ TryPublishGame game_key
-                                          (runPut $ safePut game)
+                                          ( uniqueGameWideKey game
+                                          , runPut $ safePut game )
 
         when replaced_something $ unwrap $ do
             stopInstancesByGameKey game_key >>= runStoppers
@@ -369,4 +374,38 @@ stop ginst = SubscriptionIO $ do
   where
     game_key = _gameKey ginst
     instance_key = uniqueInstanceKey $ _gameInstance ginst
+
+-- | Looks for games that are not registered now but could be registered.
+--
+-- This will only work if `lookForGames` has been implemented for the game
+-- type. Otherwise this always returns an empty list.
+lookForPotentialGames :: PublishableGame game => SubscriptionIO [game]
+lookForPotentialGames = do
+    state <- useAcidState
+    SubscriptionIO $ liftIO $ do
+        games <- lookForGames
+        published_games <- query state GetPublishedGames
+        return $ filter (not_published published_games) games
+  where
+    not_published published_games (uniqueKey -> key) =
+        case M.lookup key published_games of
+            Nothing -> True
+            Just _  -> False
+
+-- | Returns all published games of some game type.
+lookForPublishedGames :: forall game.
+                         PublishableGame game => SubscriptionIO [game]
+lookForPublishedGames = do
+    state <- useAcidState
+    SubscriptionIO $ liftIO $ do
+        published_games <- M.elems `fmap` query state GetPublishedGames
+        return $ fmap (\(snd -> x) ->
+                          assumeRight $ runGet safeGet x)
+                      (filter (\x -> fst x == key) published_games)
+  where
+    assumeRight (Right x) = x
+    assumeRight _ = error "Malformed game data in persistent storage."
+
+    key = uniqueGameWideKey (undefined :: game)
+
 

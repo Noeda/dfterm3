@@ -50,7 +50,7 @@ import qualified Data.Set as S
 -- | Class of publishable games.
 --
 -- Minimum implementation: `uniqueKey`, `uniqueInstanceKey`, `gameName`,
--- `procureInstance_`, `stopInstance`.
+-- `procureInstance_`, `stopInstance`, `uniqueGameWideKey`.
 --
 -- The type variable is:
 --
@@ -76,6 +76,14 @@ class (Typeable game, SafeCopy game) => PublishableGame game where
     -- Make sure the name doesn't clash with anything. If games of two
     -- different types have the same key, bad things could happen.
     uniqueKey :: game -> B.ByteString
+
+    -- | Returns a uniquely identifying key from a game type.
+    --
+    -- This differs from `uniqueKey` in that this key should be the same for
+    -- all values that have the same `game` type.
+    --
+    -- The first argument is not evaluated.
+    uniqueGameWideKey :: game -> B.ByteString
 
     -- | Returns a uniquely identifying key from a game instance value.
     --
@@ -103,6 +111,8 @@ class (Typeable game, SafeCopy game) => PublishableGame game where
     --
     -- This operation does not make sense for all types of games so the default
     -- implementation returns an empty list.
+    --
+    -- User code should call `lookForPotentialGames`.
     lookForGames :: IO [game]
     lookForGames = return []
 
@@ -148,7 +158,7 @@ data GameSubscription game =
 
 data SubscriptionStatePersistent =
     SubscriptionStatePersistent
-    { _publishedGames :: M.Map B.ByteString B.ByteString }
+    { _publishedGames :: M.Map B.ByteString (B.ByteString, B.ByteString) }
 
 initialSubscriptionStatePersistent :: SubscriptionStatePersistent
 initialSubscriptionStatePersistent = SubscriptionStatePersistent M.empty

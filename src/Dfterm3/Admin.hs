@@ -8,6 +8,7 @@ module Dfterm3.Admin
     ( newSessionByPassword
     , SessionID()
     , sessionIDToByteString
+    , invalidateSessionID
     , isValidSessionID
     , byteStringToSessionID
     , setAdminPassword
@@ -84,4 +85,8 @@ changePassword :: B.ByteString
 changePassword old_password new_password (readPersistentStorage -> ps) = do
     encrypted_pass <- encryptPass' (Pass new_password)
     update ps (ChangePassword old_password (Just encrypted_pass))
+
+invalidateSessionID :: SessionID -> Storage -> IO ()
+invalidateSessionID sid (readPersistentStorage -> ps) = do
+    update ps (InvalidateSessionID sid)
 
