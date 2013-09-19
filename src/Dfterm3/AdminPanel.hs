@@ -11,7 +11,6 @@ import Dfterm3.Admin
 import Dfterm3.Dfterm3State
 import Dfterm3.GameSubscription
 import Dfterm3.Logging
-import Dfterm3.Util ( whenJust )
 
 import Dfterm3.Game.DwarfFortress
 
@@ -21,8 +20,6 @@ import Control.Monad
 import Control.Monad.IO.Class ( liftIO )
 import Data.Typeable ( Typeable )
 import Data.Word
-import Data.Monoid
-import Network
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as BU
@@ -83,8 +80,6 @@ adminPanel ps =
                                           show host
                                 setSessionIDCookie sid
                                 showAdminPanelAuthenticated sid
-
-                            _ -> mzero
                    , loginScreen ]
 
          , do Right session_id' <-
@@ -131,10 +126,28 @@ adminPanelAuthenticated ps sid = msum [
          msum [ H.dir "change_password" (changePasswordPostPart ps)
               , H.dir "logout" (logoutPostPart ps sid)
               , H.dir "register_game" (registerGamePart ps)
-              , H.dir "modify_game" (modifyGamePart ps) ]
+              , H.dir "modify_game" (modifyGamePart ps)
+              , H.dir "manual_add_game" (manualAddGamePart ps) ]
 
     , adminPanelContents ps NoMsg
     ]
+
+manualAddGamePart :: Storage -> H.ServerPart H.Response
+manualAddGamePart ps = do
+    H.decodeBody decodePolicy
+    df <- mkDwarfFortressPersistent <$>
+                 blook "executable" <*>
+                 blook "working_directory" <*>
+                 return [] <*>
+                 tlook "name"
+
+    liftIO $ runSubscriptionIO ps $ publishGame df
+    liftIO $ logInfo $ "Registered a Dwarf Fortress game: " ++ show df
+    success "Game registered."
+  where
+    blook = H.body . H.look
+    tlook x = fmap T.pack (H.body $ H.look x)
+    success = adminPanelContents ps . Success
 
 modifyGamePart :: Storage -> H.ServerPart H.Response
 modifyGamePart ps = do
@@ -217,6 +230,7 @@ adminPanelContents ps flashmsg = do
         changePasswordHtml
         listOfPotentialGames potential
         listOfPublishedGames published
+        manualAddGameHtml
   where
     heading rest =
         L.html $ do
@@ -268,7 +282,7 @@ listOfPotentialGames games = do
         L.h3 "Unregistered Dwarf Fortress games:"
     L.br
     L.ul $
-        forM_ games $ \df ->
+        forM_ games $ \df -> do
             L.li $
                 L.form ! A.action "register_game" !
                          A.method "post" $ do
@@ -284,6 +298,7 @@ listOfPotentialGames games = do
                         L.input ! A.type_ "text" !
                                   A.name "name" !
                                   A.value (L.toValue (df^.customName))
+            L.br
 
 listOfPublishedGames :: [DwarfFortressPersistent] -> L.Markup
 listOfPublishedGames [] = return ()
@@ -292,7 +307,7 @@ listOfPublishedGames games = do
         L.h3 "Registered Dwarf Fortress games:"
     L.br
     L.ul $
-        forM_ games $ \df ->
+        forM_ games $ \df -> do
             L.li $
                 L.form ! A.action "modify_game" !
                          A.method "post" $ do
@@ -304,4 +319,30 @@ listOfPublishedGames games = do
                     L.toHtml (uniqueKey df)
                     L.span ! A.class_ "game_name" $
                         L.toHtml $ df^.customName
+            L.br
+
+manualAddGameHtml :: L.Markup
+manualAddGameHtml = do
+    L.h3 "Register a Dwarf Fortress manually:"
+    L.br
+    L.div ! A.class_ "manual_add_game" $ do
+        L.form ! A.action "manual_add_game" !
+                 A.method "post" $ do
+            L.label "Path to the executable file:"
+            L.input ! A.type_ "text" !
+                      A.name "executable"
+            L.br
+            L.label "Path to the working directory:"
+            L.input ! A.type_ "text" !
+                      A.name "working_directory"
+            L.br
+            L.label "Name:"
+            L.input ! A.type_ "text" !
+                      A.name "name"
+            L.br
+            L.label ""
+            L.input ! A.type_ "submit" ! A.name "manual_add_game" !
+                      A.value "Register game"
+
+
 
