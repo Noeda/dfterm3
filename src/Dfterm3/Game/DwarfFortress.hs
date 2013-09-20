@@ -3,11 +3,15 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable, DeriveGeneric, ForeignFunctionInterface #-}
-{-# LANGUAGE TypeFamilies, TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies, TemplateHaskell, OverloadedStrings #-}
 
 module Dfterm3.Game.DwarfFortress
     ( monitorDwarfFortresses
     , DwarfFortressPersistent()
+    , GameInputs( DwarfFortressInput )
+    , GameChangesets( DwarfFortressChangesets )
+    , Input(..)
+    , KeyDirection(..)
     , mkDwarfFortressPersistent
     , executable
     , workingDirectory
@@ -59,6 +63,9 @@ import qualified Data.Map as M
 import qualified Data.Serialize.Get as S
 import qualified Data.Serialize.Put as S
 
+import qualified Data.Aeson as J
+import Data.Aeson ( (.:) )
+
 #ifndef WINDOWS
 import System.Posix.Signals
 foreign import ccall safe "wait_pid" c_wait_pid :: CInt -> IO ()
@@ -108,6 +115,15 @@ data KeyDirection = Up | Down | UpAndDown
 
 data Input = Input !Int !Word32 !Bool !Bool !Bool
              deriving ( Eq, Ord, Read, Show, Typeable )
+
+instance J.FromJSON Input where
+    parseJSON (J.Object v) = Input <$>
+                             v .: "which" <*>
+                             v .: "code_point" <*>
+                             v .: "shift" <*>
+                             v .: "alt" <*>
+                             v .: "ctrl"
+    parseJSON _ = mzero
 
 instance PublishableGame DwarfFortressPersistent where
     data GameRawInstance DwarfFortressPersistent =
@@ -453,6 +469,14 @@ launchDwarfFortress df = do
                                  , std_err = stream
                                  , close_fds = True
                                  , create_group = True })
+
+    maybe_pid <- pidOfHandle phandle
+    logInfo $
+        "Created a process using executable '" ++ (_executable df)
+        ++ "', working directory '" ++ (_workingDirectory df) ++ "'" ++
+        case maybe_pid of
+            Nothing -> ""
+            Just pid -> " to pid " ++ show pid
 
     result <- tryToGetInstance 43 phandle
     case result of

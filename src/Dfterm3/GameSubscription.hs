@@ -46,6 +46,7 @@ module Dfterm3.GameSubscription
     , stopFromSubscriber
     , Dfterm3.GameSubscription.gameKey
     , SubscribingFailure(..)
+    , GameSubscription()
     , GameSubscriptionEvent(..)
     , ChatEvent(..)
 
@@ -263,6 +264,8 @@ data GameSubscriptionEvent game =
   | GameChangesets (GameChangesets game) -- ^ Changesets from the game.
 
 -- | Receive an event from a game subscription.
+--
+-- This call is asynchronous exception-safe.
 waitForEvent :: PublishableGame game
              => GameSubscription game
              -> IO (GameSubscriptionEvent game)

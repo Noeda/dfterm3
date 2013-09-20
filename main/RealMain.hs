@@ -9,7 +9,8 @@ import Dfterm3.Game.DwarfFortress
 import Dfterm3.Logging
 import Dfterm3.GameSubscription
 import Dfterm3.Dfterm3State
--- import Dfterm3.WebsocketHTTP
+import Dfterm3.Playing.WebInterface
+
 import Data.Maybe ( catMaybes )
 
 import Control.Monad ( unless )
@@ -97,9 +98,13 @@ isAdminPanelOption :: StartupOption -> Bool
 isAdminPanelOption (AdminPanel _) = True
 isAdminPanelOption _ = False
 
-isWebsocketPortOption :: StartupOption -> Maybe Word16
-isWebsocketPortOption (Websocket port) = Just port
-isWebsocketPortOption _ = Nothing
+isWebsocketPortOption :: StartupOption -> Bool
+isWebsocketPortOption (Websocket _) = True
+isWebsocketPortOption _ = False
+
+isWebsocketHTTPOption :: StartupOption -> Bool
+isWebsocketHTTPOption (WebsocketHTTP _) = True
+isWebsocketHTTPOption _ = False
 
 main :: IO ()
 main = do
@@ -159,6 +164,8 @@ run options
     unwrap _ = undefined
 
     admin_panels = filter isAdminPanelOption options
+    websocket_ports = filter isWebsocketPortOption options
+    websocket_http_ports = filter isWebsocketHTTPOption options
 
     should_daemonize = any isDaemonizeOption options
     should_set_admin_password = SetAdminPassword `elem` options
@@ -199,9 +206,22 @@ run options
                                              port
                                              storage
 
+        forM_ websocket_ports $ \(Websocket port) ->
+                                   forkIO $ runWebSocket
+                                                port
+                                                storage
+
+        forM_ websocket_http_ports $ \(WebsocketHTTP port) ->
+                                        forkIO $ runWebsocketHTTP
+                                                     port
+                                                     (fmap unwrap_websocket
+                                                           websocket_ports)
+
         -- The server is service oriented and the main function has nothing to
         -- do.  Let us loop forever.
         forever $ threadDelay 1000000000
+      where
+        unwrap_websocket (Websocket port) = port
 
 showHelp :: IO ()
 showHelp = do

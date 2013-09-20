@@ -11,7 +11,6 @@ import Dfterm3.Dfterm3State.Internal.Types
 import Dfterm3.Admin.Internal.Types
 import Dfterm3.Util ( whenJust )
 
-import Data.Typeable ( Typeable )
 import Data.Acid
 import Data.Time ( UTCTime )
 import Control.Lens
@@ -44,9 +43,6 @@ changePassword old_password encrypted_new_pass = do
   where
     set_new = setEncryptedAdminPassword encrypted_new_pass >>
               return True
-
-    mapNothing Nothing   = B.empty
-    mapNothing (Just bs) = bs
 
 maybeAddSessionByPassword :: Session
                           -> B.ByteString

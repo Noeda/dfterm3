@@ -165,7 +165,6 @@ modifyGamePart ps = do
 
 registerGamePart :: Storage -> H.ServerPart H.Response
 registerGamePart ps = do
-    liftIO $ logInfo "hi"
     H.decodeBody decodePolicy
     df <- mkDwarfFortressPersistent <$>
                  blook "executable" <*>

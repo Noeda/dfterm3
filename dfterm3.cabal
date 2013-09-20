@@ -32,12 +32,14 @@ library
                        Dfterm3.Game.DwarfFortress
                        Dfterm3.AdminPanel
                        Dfterm3.Admin
+                       Dfterm3.Playing.WebInterface
   other-modules:       Dfterm3.GameSubscription.Internal.Transactions
                        Dfterm3.GameSubscription.Internal.Types
                        Dfterm3.GameSubscription.Internal.SubscriptionIO
                        Dfterm3.Dfterm3State.Internal.Transactions
                        Dfterm3.Dfterm3State.Internal.Types
                        Dfterm3.Util
+                       Dfterm3.User
                        Dfterm3.Admin.Internal.Types
                        Dfterm3.Admin.Internal.Transactions
                        Dfterm3.CP437ToUnicode
@@ -71,6 +73,10 @@ library
                       ,blaze-markup ==0.5.*
                       ,happstack-server ==7.3.*
                       ,base64-bytestring ==1.0.*
+                      ,aeson ==0.6.*
+                      ,enumerator ==0.4.*
+                      ,websockets ==0.7.*
+                      ,vector ==0.10.*
 
   if os(mingw32)
       build-depends:  Win32 ==2.2.*

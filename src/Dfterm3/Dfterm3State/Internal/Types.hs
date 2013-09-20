@@ -11,9 +11,11 @@ module Dfterm3.Dfterm3State.Internal.Types
     , gameSubscriptions
     , gameSubscriptionsVolatile
     , admin
+    , loggedInUsers
     , readPersistentStorage
     , readVolatileStorage
     , modifyVolatileStorage
+    , modifyVolatileStorage'
     )
     where
 
@@ -25,6 +27,9 @@ import Data.SafeCopy
 import Dfterm3.GameSubscription.Internal.Types
 import Dfterm3.Admin.Internal.Types
 
+import qualified Data.Set as S
+import qualified Data.Text as T
+
 data PersistentStorageState =
     PersistentStorageState
     { _gameSubscriptions :: SubscriptionStatePersistent
@@ -33,7 +38,8 @@ data PersistentStorageState =
 
 data VolatileStorageState =
     VolatileStorageState
-    { _gameSubscriptionsVolatile :: SubscriptionStateVolatile }
+    { _gameSubscriptionsVolatile :: SubscriptionStateVolatile
+    , _loggedInUsers :: S.Set T.Text }
     deriving ( Typeable )
 makeLenses ''PersistentStorageState
 makeLenses ''VolatileStorageState
@@ -50,9 +56,15 @@ readPersistentStorage (Storage (persistent, _)) = persistent
 readVolatileStorage :: Storage -> IO VolatileStorageState
 readVolatileStorage (Storage (_, ref)) = readIORef ref
 
-modifyVolatileStorage :: Storage
-                      -> (VolatileStorageState -> VolatileStorageState)
-                      -> IO ()
-modifyVolatileStorage (Storage (_, ref)) modifier = do
+modifyVolatileStorage' :: Storage
+                       -> (VolatileStorageState -> VolatileStorageState)
+                       -> IO ()
+modifyVolatileStorage' (Storage (_, ref)) modifier = do
     atomicModifyIORef' ref $ \old -> ( modifier old, () )
+
+modifyVolatileStorage :: Storage
+                      -> (VolatileStorageState -> ( VolatileStorageState, b ) )
+                      -> IO b
+modifyVolatileStorage (Storage (_, ref)) modifier = do
+    atomicModifyIORef' ref modifier
 

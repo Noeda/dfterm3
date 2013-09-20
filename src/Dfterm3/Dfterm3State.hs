@@ -20,13 +20,15 @@ import Data.Acid
 import Data.IORef
 
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 openStorage :: FilePath -> IO Storage
 openStorage directory = do
     lock <- newMVar ()
     ref <- newIORef $ VolatileStorageState
         { _gameSubscriptionsVolatile =
-          SubscriptionStateVolatile M.empty M.empty lock }
+          SubscriptionStateVolatile M.empty M.empty lock
+        , _loggedInUsers = S.empty }
 
     createDirectoryIfMissing True directory
     st <- openLocalStateFrom directory $

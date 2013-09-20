@@ -15,8 +15,6 @@ dfterm3_playing = function() {
     var LOGIN_ACCEPTED = 4;
     var GAME_IS_GONE = 5;
 
-    var logged_in = false;
-
     if ( WebSocket === undefined ) {
         exports.websockets_are_supported = false;
         return exports;
@@ -86,26 +84,7 @@ dfterm3_playing = function() {
         who_is_playing_box.setAttribute("id", "who_is_playing");
 
         var chat_box = document.createElement("div");
-        var login_form = document.createElement("form");
-        var login_text = document.createElement("input");
-        var login_title = document.createElement("h3");
-        var login_label = document.createElement("label");
-        var login_hint = document.createElement("h4");
 
-        login_hint.setAttribute("id", "login_hint");
-        login_hint.textContent = "You need to login before you can play.";
-        login_form.setAttribute("action", "#chat");
-        login_text.setAttribute("type", "text");
-        login_label.textContent = "User name:";
-        login_form.appendChild( login_title );
-        login_form.appendChild( login_hint );
-        login_form.appendChild(login_label);
-        login_form.appendChild( login_text );
-        login_text.setAttribute("id", "login_text");
-        login_text.setAttribute("maxlength", 20);
-        login_title.textContent = "Login";
-
-        chat_box.appendChild( login_form );
         chat_box.setAttribute( "class", "chat" );
         var chat_title = document.createElement("h3");
         chat_title.textContent = "Chat";
@@ -115,7 +94,6 @@ dfterm3_playing = function() {
         var chat_hr = document.createElement("hr")
         chat_form.setAttribute("action", "#chat");
         chat_text.setAttribute("type", "text");
-        chat_text.style.display = "none";
         chat_text.setAttribute("maxlength", 800);
         chat_form.appendChild( chat_text );
         chat_box.appendChild( chat_form );
@@ -126,14 +104,6 @@ dfterm3_playing = function() {
             while ( (start = chat_hr.nextSibling) ) {
                 chat_box.removeChild(start);
             }
-        }
-
-        login_form.onsubmit = function (event) {
-            var login_name = login_text.value;
-            login_text.value = "";
-
-            socket.send("\x04" + login_name);
-            event.preventDefault();
         }
 
         chat_form.onsubmit = function (event) {
@@ -376,12 +346,62 @@ dfterm3_playing = function() {
             }
         }
 
+        var login_part = function() {
+            var login_part = document.createElement("div");
+            login_part.setAttribute("class", "auth_part");
+            var form = document.createElement("form");
+            var legend = document.createElement("legend");
+            legend.textContent = "Choose a name for yourself";
+            var label = document.createElement("label");
+            label.setAttribute("for", "username");
+            label.textContent = "Name:";
+            var input = document.createElement("input");
+            input.setAttribute("autofocus", "autofocus");
+            input.setAttribute("name", "username");
+            input.setAttribute("type", "text");
+            input.setAttribute("maxlength", 20);
+            var submit = document.createElement("input");
+            submit.setAttribute("type", "submit");
+            submit.setAttribute("value", "Login");
+
+            login_part.appendChild(form);
+            form.appendChild(legend);
+            form.appendChild(document.createElement("hr"));
+            form.appendChild(label);
+            form.appendChild(input);
+            form.appendChild(document.createElement("br"));
+            form.appendChild(document.createElement("hr"));
+            form.appendChild(submit);
+
+            form.addEventListener( "submit"
+                                   , function( event ) {
+                                       var name = input.value;
+                                       input.value = "";
+
+                                       socket.send("\x04" + name);
+                                       event.preventDefault();
+                                   } );
+
+            host_dom_element.appendChild( login_part );
+
+            return login_part;
+        }();
+
+        var showLoginBox = function() {
+            login_part.style.display = "block";
+        }
+
+        var hideLoginBox = function() {
+            login_part.style.display = "none";
+        }
+
         showCover();
 
         var socket = new WebSocket( host );
         socket.onopen = function() {
             status("Connection established.", false );
             hideCover();
+            showLoginBox();
         }
         socket.onclose = function() {
             status("No connection to server.", true );
@@ -405,8 +425,7 @@ dfterm3_playing = function() {
                     status( "Login rejected", true );
                 } else if ( array_view[0] == LOGIN_ACCEPTED ) {
                     status( "Logged in", false );
-                    chat_text.style.display = "block";
-                    login_form.style.display = "none";
+                    hideLoginBox();
                 } else if ( array_view[0] == GAME_IS_GONE ) {
                     game_is_gone_box.style.display = "inline";
                     who_is_playing_box.style.display = "none";

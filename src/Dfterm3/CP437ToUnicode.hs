@@ -2,11 +2,14 @@
 --
 
 module Dfterm3.CP437ToUnicode
-    ( cp437ToUnicode )
+    ( cp437ToUnicode
+    , unicodeToCP437 )
     where
 
 import Data.Word ( Word8 )
 import Data.Char ( chr )
+
+import qualified Data.Map as M
 
 cp437ToUnicode :: Word8 -> Char
 cp437ToUnicode 1 = '\x263a'
@@ -170,4 +173,13 @@ cp437ToUnicode 253 = '\x00b2'
 cp437ToUnicode 254 = '\x25a0'
 cp437ToUnicode 255 = '\x00a0'
 cp437ToUnicode x = chr (fromIntegral x)
+
+unicodeMap :: M.Map Char Word8
+unicodeMap = M.fromList (fmap (\x -> ( cp437ToUnicode x
+                                     , x ))
+                              [0..255])
+{-# NOINLINE unicodeMap #-}
+
+unicodeToCP437 :: Char -> Word8
+unicodeToCP437 text = M.findWithDefault undefined text unicodeMap
 
