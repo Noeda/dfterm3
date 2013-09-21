@@ -33,6 +33,7 @@ module Dfterm3.GameSubscription
     , changesets
     , PublishableGame(..)
     , GameInstance()
+    , Procurement(..)
     , rawInstance
     , receiveInput
     , tryReceiveInputSTM
@@ -58,6 +59,7 @@ module Dfterm3.GameSubscription
     , lookForPublishedGames )
     where
 
+import Dfterm3.Dfterm3State ( Storage )
 import Dfterm3.Dfterm3State.Internal.Transactions
 import Dfterm3.GameSubscription.Internal.Types
 import Dfterm3.GameSubscription.Internal.SubscriptionIO
@@ -80,7 +82,7 @@ import Control.Monad.Reader hiding ( forM_ )
 import Control.Concurrent.STM
 import Control.Concurrent.MVar
 import Control.Concurrent ( forkIO )
-import Control.Exception ( mask_ )
+import Control.Exception ( mask_, finally )
 
 -- | Publishes a game.
 --
@@ -172,17 +174,18 @@ data SubscribingFailure =
 -- | Procures an instance of some game.
 procureInstance :: PublishableGame game
                 => game
-                -> SubscriptionIO
-                   (Maybe (GameInstance game))
-procureInstance game = SubscriptionIO $ do
-    maybe_ginst_callback <- liftIO $ procureInstance_ game
-    case maybe_ginst_callback of
-        Nothing -> return Nothing
-        Just ( ginst, callback ) -> do
-            inputs_chan <- liftIO newTChanIO
-            outputs_chan <- liftIO newBroadcastTChanIO
-            chat_chan <- liftIO newBroadcastTChanIO
-            subscribeLock <- liftIO $ newMVar True
+                -> Storage
+                -> IO (Maybe (GameInstance game))
+procureInstance game storage = do
+    result <- procureInstance_ game
+    case result of
+        Failed -> return Nothing
+        ShareWithInstance inst -> return $ Just inst
+        LaunchedNewInstance ( ginst, callback ) -> do
+            inputs_chan <- newTChanIO
+            outputs_chan <- newBroadcastTChanIO
+            chat_chan <- newBroadcastTChanIO
+            subscribeLock <- newMVar True
             let stopper = stopInstance ginst
                 stopper_informer = do
                     modifyMVar_ subscribeLock $ \old -> do
@@ -190,26 +193,38 @@ procureInstance game = SubscriptionIO $ do
                             atomically $ writeTChan outputs_chan Nothing
                         return False
 
-            _1 . runningInstances %= M.insert (uniqueInstanceKey ginst)
-                                              (AnyGameInstance
-                                                  stopper
-                                                  stopper_informer)
-            _1 . runningInstancesByGameKey %= M.insertWith S.union game_key
-                                                           (S.singleton
-                                                            (uniqueInstanceKey
-                                                             ginst))
+            runSubscriptionIO storage $ SubscriptionIO $ do
+                let ri = _1 . runningInstances
+                    rigamekey = _1 . runningInstancesByGameKey
+                    instance_key = uniqueInstanceKey ginst
 
-            let game_instance =
-                 GameInstance { _gameInstance = ginst
-                              , _gameKey = game_key
-                              , _inputsInstanceChannel = inputs_chan
-                              , _outputsInstanceChannel = outputs_chan
-                              , _chatBroadcastChannel = chat_chan
-                              , _subscribeLock = subscribeLock }
+                old_instances <- use ri
+                case M.lookup instance_key old_instances of
+                    Just _ -> do
+                        liftIO $ void $ forkIO $ stopInstance ginst
+                        return Nothing
+                    Nothing -> do
+                    _1 . runningInstances %= M.insert instance_key
+                                   (AnyGameInstance
+                                       stopper
+                                       stopper_informer)
+                    rigamekey %= M.insertWith S.union game_key
+                                                      (S.singleton
+                                                       (uniqueInstanceKey
+                                                        ginst))
 
-            liftIO $ void $ forkIO $ callback game_instance
+                    let game_instance =
+                         GameInstance { _gameInstance = ginst
+                                      , _gameKey = game_key
+                                      , _inputsInstanceChannel = inputs_chan
+                                      , _outputsInstanceChannel = outputs_chan
+                                      , _chatBroadcastChannel = chat_chan
+                                      , _subscribeLock = subscribeLock }
 
-            return $ Just game_instance
+                    liftIO $ void $ forkIO $
+                        finally (callback game_instance) $ do
+                            atomically $ writeTChan outputs_chan Nothing
+                    return $ Just game_instance
   where
     game_key = uniqueKey game
 
@@ -245,7 +260,7 @@ subscribe inst name = mask_ $ do
         return $ Right $
             GameSubscription { _inputsChannel = _inputsInstanceChannel inst
                              , _outputsChannel = dupped_output_chan
-                             , _chatChannel = _chatBroadcastChannel inst
+                             , _chatChannel = broadcast_chan
                              , _chatReceivingChannel = dupped_chan
                              , _name = name
                              , _subscriberGameInstance = inst

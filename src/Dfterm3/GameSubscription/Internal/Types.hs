@@ -15,6 +15,7 @@ module Dfterm3.GameSubscription.Internal.Types
     , GameSubscription(..)
     , ChatEvent(..)
     , AnyGameInstance(..)
+    , Procurement(..)
 
     , initialSubscriptionStatePersistent
 
@@ -117,15 +118,14 @@ class (Typeable game, SafeCopy game) => PublishableGame game where
     lookForGames = return []
 
     -- | Procures an instance of a game.
-    --
-    -- This can launch a new game or return an existing, running game. It
-    -- depends on the game which makes more sense. Return `Nothing` if an
-    -- instance cannot be procured at this time.
-    --
-    -- The second value in the returned tuple is called when a proper instance
-    -- of the game has been made. It is run a new thread.
-    procureInstance_ :: game -> IO ( Maybe ( GameRawInstance game
-                                           , GameInstance game -> IO () ) )
+    procureInstance_ :: game -> IO (Procurement game)
+
+data Procurement game =
+    LaunchedNewInstance ( GameRawInstance game
+                        , GameInstance game -> IO () )
+  | ShareWithInstance (GameInstance game)
+  | Failed
+  deriving ( Typeable )
 
 -- | An instance of a game.
 data GameInstance game =

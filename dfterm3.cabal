@@ -38,6 +38,7 @@ library
                        Dfterm3.GameSubscription.Internal.SubscriptionIO
                        Dfterm3.Dfterm3State.Internal.Transactions
                        Dfterm3.Dfterm3State.Internal.Types
+                       Dfterm3.Game.DwarfFortress.Internal.Running
                        Dfterm3.Util
                        Dfterm3.User
                        Dfterm3.Admin.Internal.Types

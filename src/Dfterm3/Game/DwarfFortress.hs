@@ -19,6 +19,8 @@ module Dfterm3.Game.DwarfFortress
     , customName )
     where
 
+import Dfterm3.Game.DwarfFortress.Internal.Running
+
 import Dfterm3.GameSubscription
 import Dfterm3.Util
 import Dfterm3.Logging
@@ -32,6 +34,7 @@ import System.Random
 import System.IO
 import System.IO.Unsafe
 import System.IO.Error
+import System.Timeout
 import System.FilePath
 import System.Environment
 import System.Process
@@ -72,8 +75,6 @@ foreign import ccall safe "wait_pid" c_wait_pid :: CInt -> IO ()
 #endif
 foreign import ccall safe "terminate_process"
     c_terminate_process :: CInt -> IO ()
-
-type DFPid = Word64
 
 -- The protocol buffer thingy. Keep in sync with dfhack:
 -- plugins/proto/dfterm3.proto in the dfhack repository.
@@ -136,7 +137,9 @@ instance PublishableGame DwarfFortressPersistent where
         , _outputsChan :: TChan (GameChangesets DwarfFortressPersistent)
         , _deathChan :: TChan ()
         , _dfVersionInstance :: T.Text
-        , _cleaner :: FinRef }
+        , _runTid :: ThreadId
+        , _parentInstance ::
+            IORef (Maybe (GameInstance DwarfFortressPersistent)) }
 
     data GameInputs DwarfFortressPersistent =
         DwarfFortressInput !KeyDirection !T.Text !Input
@@ -148,15 +151,19 @@ instance PublishableGame DwarfFortressPersistent where
     uniqueInstanceKey = S.runPut . S.putWord64be . _pid
     uniqueGameWideKey _ = B8.fromString "Dfterm3.Game.DwarfFortress"
     gameName game = T.pack "Dwarf Fortress: " `T.append` _customName game
-    stopInstance = finalizeFinRef . _cleaner
+    stopInstance = killThread . _runTid
 
     lookForGames = lookForDwarfFortresses
 
     procureInstance_ = procureDwarfFortress
 
+dfstate :: DFState (GameRawInstance DwarfFortressPersistent)
+dfstate = unsafePerformIO $ newDFState
+{-# NOINLINE dfstate #-}
+
 lookForDwarfFortresses :: IO [DwarfFortressPersistent]
 lookForDwarfFortresses =
-    fmap (fmap toDFP) $ M.elems <$> readIORef runningDwarfFortresses
+    fmap (fmap toDFP) $ allAliveInstances dfstate
   where
     toDFP ginstance =
         DwarfFortressPersistent
@@ -214,12 +221,6 @@ portChecker' port = catchSilents_ $ do
         Right handle -> finally (dfhackConnection handle) (hClose handle)
         Left _ -> return ()
 
-runningDwarfFortresses :: IORef
-                          (M.Map DFPid
-                                 (GameRawInstance DwarfFortressPersistent))
-runningDwarfFortresses = unsafePerformIO $ newIORef M.empty
-{-# NOINLINE runningDwarfFortresses #-}
-
 dfhackConnection :: Handle -> IO ()
 dfhackConnection handle = do
     Left info <- hGetMessage handle :: IO (Either Introduction ScreenData)
@@ -230,6 +231,7 @@ dfhackConnection handle = do
         df_pid = fromIntegral df_pid' :: DFPid
 
     df_executable <- T.pack <$> detectDFHackScript (T.unpack df_executable')
+    let df_executable_bs = B8.fromString (T.unpack df_executable)
 
     cookie_contents <- readMagicCookieFile (T.unpack working_dir ++
                                             "/.dfterm3-cookie")
@@ -249,16 +251,16 @@ dfhackConnection handle = do
     death_channel <- newTChanIO
 
     tid <- myThreadId
-    finref <- newFinalizableFinRef $ do
+
+    flip finally (do
         atomically $ writeTChan death_channel ()
-        killThread tid
         reapPid df_pid
-        atomicModifyIORef' runningDwarfFortresses $ \old ->
-            ( M.delete df_pid old, () )
+        unregister df_executable_bs dfstate) $ do
+
+    parent_ref <- newIORef Nothing
 
     let running_instance = DwarfFortressRunning { _pid = df_pid
                                                 , _handle = handle
-                                                , _cleaner = finref
                                                 , _executableInstance =
                                                     T.unpack df_executable
                                                 , _workingDirectoryInstance =
@@ -268,10 +270,11 @@ dfhackConnection handle = do
                                                 , _deathChan = death_channel
                                                 , _dfVersionInstance =
                                                     df_version
+                                                , _parentInstance = parent_ref
+                                                , _runTid = tid
                                                 }
 
-    atomicModifyIORef' runningDwarfFortresses $ \old ->
-        ( M.insert df_pid running_instance old, () )
+    registerNew df_executable_bs dfstate running_instance
 
     forkDyingIO (input_processer input_channel handle) $
         rec output_channel
@@ -281,8 +284,6 @@ dfhackConnection handle = do
                                           Black])
                          (0, 0))
             msg
-
-    touchFinRef finref
   where
     input_processer :: TChan (GameInputs DwarfFortressPersistent)
                     -> Handle
@@ -433,21 +434,27 @@ antiIntegerify 0 = False
 antiIntegerify _ = True
 
 procureDwarfFortress :: DwarfFortressPersistent
-                     -> IO (Maybe ( GameRawInstance DwarfFortressPersistent
-                                  , GameInstance DwarfFortressPersistent
-                                  -> IO ()) )
+                     -> IO (Procurement DwarfFortressPersistent)
 procureDwarfFortress df = do
-    running_fortresses <- readIORef runningDwarfFortresses
-    case find (\inst -> _executableInstance inst == _executable df)
-              (M.elems running_fortresses) of
-        Nothing -> launchDwarfFortress df
-        Just inst -> return $ Just ( inst, procurement inst )
+    mvar_status <- takeOldOrStartProcuring
+                       (B8.fromString $ _executable df)
+                       dfstate
+    case mvar_status of
+        PleaseProcure mvar -> launchDwarfFortress df mvar
+        AlreadyProcuring mvar -> do
+            maybe_ginst <- timeout 20000000 $ readMVar mvar
+            case maybe_ginst of
+                Nothing    -> return Failed
+                Just ginst -> do
+                    parent <- readIORef (_parentInstance ginst)
+                    case parent of
+                        Nothing -> return Failed
+                        Just inst -> return $ ShareWithInstance inst
 
 launchDwarfFortress :: DwarfFortressPersistent
-                    -> IO (Maybe ( GameRawInstance DwarfFortressPersistent
-                                 , GameInstance DwarfFortressPersistent
-                                 -> IO ()) )
-launchDwarfFortress df = do
+                    -> MVar (GameRawInstance DwarfFortressPersistent)
+                    -> IO (Procurement DwarfFortressPersistent)
+launchDwarfFortress df mvar = do
     old_env <- getEnvironment
 #ifdef WINDOWS
     let stream = Inherit
@@ -478,32 +485,15 @@ launchDwarfFortress df = do
             Nothing -> ""
             Just pid -> " to pid " ++ show pid
 
-    result <- tryToGetInstance 43 phandle
-    case result of
-        Nothing -> undoProcess phandle >> return Nothing
-        Just  _ -> return result
-
+    onException (do
+        maybe_ginst <- timeout 20000000 $ readMVar mvar
+        case maybe_ginst of
+            Nothing    -> undoProcess phandle >> return Failed
+            Just ginst -> return $ LaunchedNewInstance
+                                   ( ginst, procurement ginst ))
+        (undoProcess phandle)
   where
     undoProcess phandle = whenJustM (pidOfHandle phandle) reapPid
-
-    tryToGetInstance :: Int
-                     -> ProcessHandle
-                     -> IO (Maybe ( GameRawInstance DwarfFortressPersistent
-                                  , GameInstance DwarfFortressPersistent
-                                    -> IO ()) )
-    tryToGetInstance 0 _ = return Nothing
-    tryToGetInstance tick phandle = do
-        maybe_my_pid <- pidOfHandle phandle
-        case maybe_my_pid of
-            Nothing -> return Nothing
-            Just my_pid -> do
-                running_fortresses <- readIORef runningDwarfFortresses
-                case find (\inst -> _pid inst == my_pid)
-                          (M.elems running_fortresses) of
-                   Just inst -> return $ Just ( inst, procurement inst )
-                   Nothing -> do
-                       threadDelay 500000
-                       tryToGetInstance (tick-1) phandle
 
 pidOfHandle :: ProcessHandle -> IO (Maybe DFPid)
 pidOfHandle phandle =
@@ -516,6 +506,7 @@ procurement :: GameRawInstance DwarfFortressPersistent
             -> GameInstance DwarfFortressPersistent
             -> IO ()
 procurement raw_instance game_instance = do
+    writeIORef (_parentInstance raw_instance) (Just game_instance)
     outputs_chan <- atomically $ dupTChan (_outputsChan raw_instance)
 
     catchSilents_ $ do
@@ -533,7 +524,8 @@ procurement raw_instance game_instance = do
 
         case maybe_new_death of
             Nothing -> return ()
-            Just _  -> throwIO SilentlyDie
+            Just _  -> do
+                throwIO SilentlyDie
 
         case maybe_new_changesets of
             Nothing -> return ()

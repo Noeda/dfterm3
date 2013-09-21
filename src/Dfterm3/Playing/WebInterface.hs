@@ -139,8 +139,7 @@ chooseYourGame user ps = do
   where
     choseGame :: DwarfFortressPersistent -> WebSockets DftermProto ()
     choseGame chosen_df = do
-        maybe_ginstance <- liftIO $
-            runSubscriptionIO ps $ procureInstance chosen_df
+        maybe_ginstance <- liftIO $ procureInstance chosen_df ps
         case maybe_ginstance of
             Nothing -> return ()
             Just ginstance -> do
@@ -187,6 +186,7 @@ gameLoop user ps subscription = do
                      user
                      ps
                      subscription
+                     (killThread tid >> killThread tid2)
 
     liftIO $ touchFinRef finref
 
@@ -198,8 +198,8 @@ gameEventHandler :: GameSubscription DwarfFortressPersistent
                  -> TChan Event
                  -> Bool
                  -> IO ()
-gameEventHandler subscription sink chan first = mask $ \restore -> do
-    event <- restore $ waitForEvent subscription
+gameEventHandler subscription sink chan first = do
+    event <- waitForEvent subscription
     case event of
         InstanceClosed -> do
             sendSink sink $ DataMessage $ Binary $ BL.singleton 5
@@ -239,12 +239,13 @@ webSocketHandler :: (Event -> WebSockets DftermProto ())
                  -> User
                  -> Storage
                  -> GameSubscription DwarfFortressPersistent
+                 -> IO ()
                  -> WebSockets DftermProto ()
-webSocketHandler write_event user ps subscription = do
+webSocketHandler write_event user ps subscription killer = do
     Text msg <- receiveDataMessage
     case B.head $ BL.toStrict msg of
         -- Unsubscribe
-        2 -> stop
+        2 -> liftIO killer >> stop
 
         -- Chat
         3 -> do whenLoggedIn user $ \name ->
@@ -260,7 +261,7 @@ webSocketHandler write_event user ps subscription = do
 
         _ -> recurse
   where
-    recurse = webSocketHandler write_event user ps subscription
+    recurse = webSocketHandler write_event user ps subscription killer
     stop = return ()
 
     inputMsg msg up_or_down =
