@@ -244,3 +244,7 @@ form[action="logout"] {
     margin: 5px;
 }
 
+.player_listing {
+    float: right;
+}
+

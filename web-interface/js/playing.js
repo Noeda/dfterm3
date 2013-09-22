@@ -45,6 +45,17 @@ dfterm3_playing = function() {
 
         var go_back_button = document.createElement("div");
         var go_back_button_a = document.createElement("a");
+
+        var player_listing_div = document.createElement("div");
+        var num_players_p = document.createElement("p");
+        num_players_p.textContent = "";
+
+        var list_dom_element = document.createElement("ul");
+        player_listing_div.appendChild( num_players_p );
+        player_listing_div.appendChild( list_dom_element );
+        player_listing_div.setAttribute("class", "player_listing");
+        player_listing_div.style.display = "none";
+
         go_back_button_a.textContent = "Go back to game list";
         go_back_button_a.setAttribute("href", "#");
         go_back_button.appendChild(go_back_button_a);
@@ -73,8 +84,6 @@ dfterm3_playing = function() {
         game_is_gone_box.setAttribute("id", "game_is_gone_box");
         game_is_gone_box.textContent = "Game is not active";
         game_is_gone_box.style.display = "none";
-
-
 
         var who_is_playing_box = document.createElement("h3");
         var resetWhoIsPlaying = function() {
@@ -115,6 +124,7 @@ dfterm3_playing = function() {
         }
 
         host_dom_element.appendChild( cover );
+        host_dom_element.appendChild( player_listing_div );
         host_dom_element.appendChild( terminal_dom_element );
 
         status_element.textContent =
@@ -163,6 +173,8 @@ dfterm3_playing = function() {
             terminal_dom_element.removeChild( chat_box );
             terminal = undefined;
 
+            player_listing_div.style.display = "none";
+
             resetWhoIsPlaying();
             clearChat();
         }
@@ -184,6 +196,7 @@ dfterm3_playing = function() {
 
             who_is_playing_box.style.display = "inline";
             game_is_gone_box.style.display = "none";
+            player_listing_div.style.display = "inline";
 
             terminal.getDOMObject().setAttribute("tabindex", 1);
 
@@ -341,6 +354,17 @@ dfterm3_playing = function() {
             insertToChat( line );
         }
 
+        var updateNumPlayers = function() {
+            var num = list_dom_element.children.length;
+            if ( num === 0 ) {
+                num_players_p.textContent = "No watchers here.";
+            } else if ( num === 1 ) {
+                num_players_p.textContent = "1 watcher.";
+            } else {
+                num_players_p.textContent = num + " watchers.";
+            }
+        }
+
         var handleChatJoin = function( who ) {
             var line = document.createElement("p");
             var who_span = document.createElement("span");
@@ -355,6 +379,11 @@ dfterm3_playing = function() {
             line.appendChild( content_span );
 
             insertToChat( line );
+
+            var elem = document.createElement("li");
+            elem.textContent = who;
+            list_dom_element.appendChild( elem );
+            updateNumPlayers();
         }
         var handleChatPart = function( who ) {
             var line = document.createElement("p");
@@ -370,6 +399,32 @@ dfterm3_playing = function() {
             line.appendChild( content_span );
 
             insertToChat( line );
+
+            var children = list_dom_element.children;
+            var remove_us = [];
+            for ( var i = 0; i < children.length; ++i ) {
+                if ( children[i].textContent === who ) {
+                    remove_us.push( children[i] );
+                }
+            }
+            for ( var i = 0; i < remove_us.length; ++i ) {
+                list_dom_element.removeChild( remove_us[i] );
+            }
+
+            updateNumPlayers();
+        }
+
+        var handlePlayerList = function( array, first_index ) {
+            while ( list_dom_element.hasChildNodes() ) {
+                list_dom_element.removeChild( list_dom_element.lastChild );
+            }
+
+            for ( var i = first_index; i < array.length; ++i ) {
+                var elem = document.createElement("li");
+                elem.textContent = array[i];
+                list_dom_element.appendChild( elem );
+            }
+            updateNumPlayers();
         }
 
         var jsonMessage = function(msg) {
@@ -383,6 +438,8 @@ dfterm3_playing = function() {
                 handleChatJoin( msg[1] );
             } else if ( msg[0] === "chat_parted" ) {
                 handleChatPart( msg[1] );
+            } else if ( msg[0] === "player_list" ) {
+                handlePlayerList( msg, 1 );
             }
         }
 
