@@ -143,7 +143,8 @@ instance PublishableGame DwarfFortressPersistent where
         DwarfFortressInput !KeyDirection !T.Text !Input
 
     data GameChangesets DwarfFortressPersistent =
-        DwarfFortressChangesets Terminal TerminalChanges -- keep these lazy
+        -- keep these lazy
+        DwarfFortressChangesets Terminal TerminalChanges (Maybe T.Text)
 
     uniqueKey = B8.fromString . _executable
     uniqueInstanceKey = S.runPut . S.putWord64be . _pid
@@ -250,6 +251,8 @@ dfhackConnection handle = do
 
     tid <- myThreadId
 
+    last_player_ref <- newIORef Nothing
+
     flip finally (do
         atomically $ writeTChan death_channel ()
         reapPid df_pid
@@ -274,7 +277,7 @@ dfhackConnection handle = do
 
     registerNew df_executable_bs dfstate running_instance
 
-    forkDyingIO (input_processer input_channel handle) $
+    forkDyingIO (input_processer input_channel handle last_player_ref) $
         rec output_channel
             (newTerminal (listArray ((0, 0), (79, 24))
                                     [Cell (T.pack " ")
@@ -282,16 +285,19 @@ dfhackConnection handle = do
                                           Black])
                          (0, 0))
             msg
+            last_player_ref
   where
     input_processer :: TChan (GameInputs DwarfFortressPersistent)
                     -> Handle
+                    -> IORef (Maybe T.Text)
                     -> IO ()
-    input_processer channel handle = forever $ do
+    input_processer channel handle last_player_ref = forever $ do
         input <- atomically $ readTChan channel
         case input of
             DwarfFortressInput key_direction
-                               _
-                               (Input code code_point shift alt ctrl) ->
+                               who
+                               (Input code code_point shift alt ctrl) -> do
+                writeIORef last_player_ref (Just who)
                 hSendByteString handle $ B.pack [1] `B.append` S.runPut (do
                     S.putWord32be (fromIntegral code)
                     S.putWord32be (fromIntegral code_point)
@@ -303,8 +309,9 @@ dfhackConnection handle = do
     rec :: TChan (GameChangesets DwarfFortressPersistent)
         -> Terminal
         -> ScreenData
+        -> IORef (Maybe T.Text)
         -> IO ()
-    rec channel terminal msg = do
+    rec channel terminal msg last_player_ref = do
         let grid_data = screenData msg
             colors_data = colorData msg
             w = swidth msg
@@ -323,15 +330,18 @@ dfhackConnection handle = do
                                                          clrs))
                             (0, 0)
 
+        last_player <- readIORef last_player_ref
+
         atomically $ writeTChan channel
                                 (DwarfFortressChangesets
                                     new_terminal
-                                    (findChanges terminal new_terminal))
+                                    (findChanges terminal new_terminal)
+                                    last_player)
 
         Right next_message <- hGetMessage handle
             :: IO (Either Introduction ScreenData)
 
-        rec channel new_terminal next_message
+        rec channel new_terminal next_message last_player_ref
 
     unicode_nator :: Word8 -> Word8 -> Cell
     unicode_nator code colors = Cell (T.singleton $ cp437ToUnicode code)

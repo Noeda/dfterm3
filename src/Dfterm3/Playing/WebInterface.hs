@@ -165,7 +165,7 @@ gameLoop user ps subscription = do
 
     tid <- liftIO $
         forkIOWithUnmask $ \unmask ->
-            unmask (gameEventHandler subscription sink True)
+            unmask (gameEventHandler subscription sink True Nothing)
 
     -- Haxory to make sure those two above threads can be killed.
     finref <- liftIO $ newFinalizableFinRef $
@@ -181,8 +181,9 @@ gameLoop user ps subscription = do
 gameEventHandler :: GameSubscription DwarfFortressPersistent
                  -> Sink DftermProto
                  -> Bool
+                 -> Maybe T.Text
                  -> IO ()
-gameEventHandler subscription sink first = do
+gameEventHandler subscription sink first last_player = do
     event <- waitForEvent subscription
     case event of
         InstanceClosed -> do
@@ -207,16 +208,29 @@ gameEventHandler subscription sink first = do
                                           , J.String msg ])
             recurse
 
-        GameChangesets (DwarfFortressChangesets terminal changes) -> do
+        GameChangesets (DwarfFortressChangesets terminal
+                                                changes
+                                                new_last_player) -> do
+            when (new_last_player /= last_player) $ do
+                case new_last_player of
+                    Nothing ->
+                        sendJSON $ J.encode
+                            (fromList [ J.String "who_is_playing" ] )
+                    Just plr ->
+                        sendJSON $ J.encode
+                            (fromList [ J.String "who_is_playing"
+                                      , J.String plr ])
+
             sendSink sink $ DataMessage $ Binary $ BL.fromStrict $
                 if first
                   then encodeStateToBinary terminal
                   else encodeChangesToBinary changes
-            gameEventHandler subscription sink False
+
+            gameEventHandler subscription sink False new_last_player
   where
     sendJSON x =
         sendSink sink $ DataMessage $ Binary $ BL.singleton 2 `BL.append` x
-    recurse = gameEventHandler subscription sink first
+    recurse = gameEventHandler subscription sink first last_player
 
 
 webSocketHandler :: User
