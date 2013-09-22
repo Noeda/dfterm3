@@ -151,7 +151,7 @@ data Cell = Cell
 
 -- | This data type is a game whose output can be wholly represented by a bunch
 -- of Unicode characters, with foregrounds and backgrounds.
-data Terminal = Terminal { _gridArray :: (Array (Int, Int) Cell)
+data Terminal = Terminal { _gridArray :: Array (Int, Int) Cell
                          , _cursor :: Location }
                  deriving ( Eq, Show, Ord, Read, Typeable )
 

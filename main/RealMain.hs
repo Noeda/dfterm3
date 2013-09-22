@@ -4,16 +4,11 @@ module Main ( main ) where
 
 import ConfiguredDefaults
 
--- import qualified Dfterm3.WebsocketAccepter as WS
 import Dfterm3.Game.DwarfFortress
 import Dfterm3.Logging
-import Dfterm3.GameSubscription
 import Dfterm3.Dfterm3State
 import Dfterm3.Playing.WebInterface
 
-import Data.Maybe ( catMaybes )
-
-import Control.Monad ( unless )
 import Dfterm3.AdminPanel
 import qualified Dfterm3.Admin as A
 
@@ -158,11 +153,8 @@ run options
                     (run (filter (not . isDaemonizeOption) options))
         exitSuccess
 #endif
-    | otherwise = withSocketsDo $ run'
+    | otherwise = withSocketsDo run'
   where
-    unwrap (AdminPanel x) = x
-    unwrap _ = undefined
-
     admin_panels = filter isAdminPanelOption options
     websocket_ports = filter isWebsocketPortOption options
     websocket_http_ports = filter isWebsocketHTTPOption options
@@ -222,6 +214,7 @@ run options
         forever $ threadDelay 1000000000
       where
         unwrap_websocket (Websocket port) = port
+        unwrap_websocket _ = error "Impossible!"
 
 showHelp :: IO ()
 showHelp = do

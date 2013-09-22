@@ -1,8 +1,6 @@
 -- | Internal module to `Dfterm3.Game.DwarfFortress`.
 --
 
-{-# LANGUAGE TemplateHaskell #-}
-
 module Dfterm3.Game.DwarfFortress.Internal.Running
     ( DFPid
     , DFState()

@@ -16,7 +16,8 @@ module Dfterm3.Util
     where
 
 import Data.Typeable ( Typeable )
-import Control.Monad ( void )
+import Data.Foldable ( forM_ )
+import Control.Monad ( void, unless )
 import Data.IORef
 import Control.Concurrent
 import Control.Exception
@@ -42,9 +43,7 @@ newFinalizableFinRef finalizer = do
     bool_ref <- newIORef False
     void $ mkWeakIORef ref $ do
         dont_finalize <- atomicModifyIORef' bool_ref $ \old -> ( True, old )
-        if dont_finalize
-          then return ()
-          else finalizer
+        unless dont_finalize finalizer
 
     return $ FinRef ref bool_ref finalizer
 
@@ -55,9 +54,7 @@ newFinalizableFinRef finalizer = do
 finalizeFinRef :: FinRef -> IO ()
 finalizeFinRef (FinRef _ bool_ref finalizer) = do
     dont_finalize <- atomicModifyIORef' bool_ref $ \old -> ( True, old )
-    if dont_finalize
-      then return ()
-      else finalizer
+    unless dont_finalize finalizer
 
 -- | Almost the same as `fromIntegral` but raises a user error if the source
 -- integer cannot be represented in the target type.
@@ -91,7 +88,5 @@ whenJust (Just x) action = action x
 whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
 whenJustM maybe_action action = do
     result <- maybe_action
-    case result of
-        Nothing -> return ()
-        Just  x -> action x
+    forM_ result action
 

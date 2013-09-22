@@ -18,14 +18,12 @@ module Dfterm3.User
 import Dfterm3.Dfterm3State.Internal.Types
 import Dfterm3.Util
 
-import Data.Acid
-import Data.Typeable ( Typeable)
+import Data.Typeable ( Typeable )
+import Data.Foldable ( forM_ )
 import Data.IORef
 import Control.Monad.IO.Class ( MonadIO, liftIO )
-import Control.Concurrent
 import Control.Exception ( mask_ )
 import Control.Lens
-import Control.Applicative
 
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -94,7 +92,5 @@ whenLoggedIn (User ref) action = do
                      Guest -> Nothing
                      LoggedInUser name -> Just name
 
-    case is_logged_in of
-        Nothing -> return ()
-        Just name -> action name
+    forM_ is_logged_in action
 

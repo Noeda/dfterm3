@@ -32,13 +32,9 @@ module Dfterm3.GameSubscription.Internal.Types
     )
     where
 
-import Data.Acid
 import Data.SafeCopy
 import Data.IORef
-import Control.Monad.Reader
-import Control.Monad.State
 import Control.Lens
-import Control.Applicative ( Applicative )
 import Control.Concurrent.STM
 import Control.Concurrent.MVar
 import Data.Typeable ( Typeable )

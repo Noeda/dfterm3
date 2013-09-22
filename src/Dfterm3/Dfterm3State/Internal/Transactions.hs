@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell, DeriveDataTypeable, TypeFamilies #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Dfterm3.Dfterm3State.Internal.Transactions
     ( TryPublishGame(..)

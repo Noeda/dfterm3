@@ -2,6 +2,7 @@
 --
 
 {-# LANGUAGE OverloadedStrings, DeriveDataTypeable #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Dfterm3.AdminPanel
     ( runAdminPanel )
@@ -134,20 +135,15 @@ adminPanelAuthenticated ps sid = msum [
 
 manualAddGamePart :: Storage -> H.ServerPart H.Response
 manualAddGamePart ps = do
-    H.decodeBody decodePolicy
-    df <- mkDwarfFortressPersistent <$>
-                 blook "executable" <*>
-                 blook "working_directory" <*>
-                 return [] <*>
-                 tlook "name"
+    decodePersistent >>= registerPersistentDF ps
+    adminPanelContents ps (Success "Game registered.")
 
+registerPersistentDF :: Storage
+                     -> DwarfFortressPersistent
+                     -> H.ServerPart ()
+registerPersistentDF ps df = do
     liftIO $ runSubscriptionIO ps $ publishGame df
     liftIO $ logInfo $ "Registered a Dwarf Fortress game: " ++ show df
-    success "Game registered."
-  where
-    blook = H.body . H.look
-    tlook x = fmap T.pack (H.body $ H.look x)
-    success = adminPanelContents ps . Success
 
 modifyGamePart :: Storage -> H.ServerPart H.Response
 modifyGamePart ps = do
@@ -163,22 +159,22 @@ modifyGamePart ps = do
     success = adminPanelContents ps . Success
     blook = H.body . H.look
 
-registerGamePart :: Storage -> H.ServerPart H.Response
-registerGamePart ps = do
+decodePersistent :: H.ServerPart DwarfFortressPersistent
+decodePersistent = do
     H.decodeBody decodePolicy
-    df <- mkDwarfFortressPersistent <$>
-                 blook "executable" <*>
-                 blook "working_directory" <*>
-                 return [] <*>
-                 tlook "name"
-
-    liftIO $ runSubscriptionIO ps $ publishGame df
-    liftIO $ logInfo $ "Registered a Dwarf Fortress game: " ++ show df
-    success "Game registered."
+    mkDwarfFortressPersistent <$>
+             blook "executable" <*>
+             blook "working_directory" <*>
+             return [] <*>
+             tlook "name"
   where
     blook = H.body . H.look
     tlook x = fmap T.pack (H.body $ H.look x)
-    success = adminPanelContents ps . Success
+
+registerGamePart :: Storage -> H.ServerPart H.Response
+registerGamePart ps = do
+    decodePersistent >>= registerPersistentDF ps
+    adminPanelContents ps (Success "Game registered.")
 
 logoutPostPart :: Storage -> SessionID -> H.ServerPart H.Response
 logoutPostPart ps sid = do
@@ -196,16 +192,14 @@ changePasswordPostPart ps = do
 
     if B.null password
       then failure "Password cannot be empty."
-      else do
+      else if password /= retype_password
+              then failure "Passwords do not match."
+              else do
 
-    if password /= retype_password
-      then failure "Passwords do not match."
-      else do
-
-    results <- liftIO $ changePassword old_password password ps
-    if results
-      then success "Password changed."
-      else failure "Incorrect old password."
+            results <- liftIO $ changePassword old_password password ps
+            if results
+              then success "Password changed."
+              else failure "Incorrect old password."
   where
     blook = H.body . H.look
     failure = adminPanelContents ps . Failure
@@ -217,19 +211,19 @@ adminPanelContents ps flashmsg = do
         (lookForPotentialGames :: SubscriptionIO [DwarfFortressPersistent])
         (lookForPublishedGames :: SubscriptionIO [DwarfFortressPersistent])
 
-    H.ok . H.toResponse $ heading $ do
-    L.div ! A.class_ "admin_content" $ do
-        case flashmsg of
-            Failure msg ->
-                L.div ! A.class_ "admin_flash_failure" $ L.p (L.toHtml msg)
-            Success msg ->
-                L.div ! A.class_ "admin_flash_success" $ L.p (L.toHtml msg)
-            NoMsg -> return ()
-        logoutHtml
-        changePasswordHtml
-        listOfPotentialGames potential
-        listOfPublishedGames published
-        manualAddGameHtml
+    H.ok . H.toResponse $ heading $
+        L.div ! A.class_ "admin_content" $ do
+            case flashmsg of
+                Failure msg ->
+                    L.div ! A.class_ "admin_flash_failure" $ L.p (L.toHtml msg)
+                Success msg ->
+                    L.div ! A.class_ "admin_flash_success" $ L.p (L.toHtml msg)
+                NoMsg -> return ()
+            logoutHtml
+            changePasswordHtml
+            listOfPotentialGames potential
+            listOfPublishedGames published
+            manualAddGameHtml
   where
     heading rest =
         L.html $ do
@@ -277,7 +271,7 @@ instance L.ToMarkup BU.ByteString where
 listOfPotentialGames :: [DwarfFortressPersistent] -> L.Markup
 listOfPotentialGames [] = return ()
 listOfPotentialGames games = do
-    L.div ! A.class_ "admin_title_unregistered" $ do
+    L.div ! A.class_ "admin_title_unregistered" $
         L.h3 "Unregistered Dwarf Fortress games:"
     L.br
     L.ul $
@@ -302,7 +296,7 @@ listOfPotentialGames games = do
 listOfPublishedGames :: [DwarfFortressPersistent] -> L.Markup
 listOfPublishedGames [] = return ()
 listOfPublishedGames games = do
-    L.div ! A.class_ "admin_title_registered" $ do
+    L.div ! A.class_ "admin_title_registered" $
         L.h3 "Registered Dwarf Fortress games:"
     L.br
     L.ul $
@@ -324,7 +318,7 @@ manualAddGameHtml :: L.Markup
 manualAddGameHtml = do
     L.h3 "Register a Dwarf Fortress manually:"
     L.br
-    L.div ! A.class_ "manual_add_game" $ do
+    L.div ! A.class_ "manual_add_game" $
         L.form ! A.action "manual_add_game" !
                  A.method "post" $ do
             L.label "Path to the executable file:"

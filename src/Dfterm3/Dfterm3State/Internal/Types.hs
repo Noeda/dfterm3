@@ -59,12 +59,12 @@ readVolatileStorage (Storage (_, ref)) = readIORef ref
 modifyVolatileStorage' :: Storage
                        -> (VolatileStorageState -> VolatileStorageState)
                        -> IO ()
-modifyVolatileStorage' (Storage (_, ref)) modifier = do
+modifyVolatileStorage' (Storage (_, ref)) modifier =
     atomicModifyIORef' ref $ \old -> ( modifier old, () )
 
 modifyVolatileStorage :: Storage
                       -> (VolatileStorageState -> ( VolatileStorageState, b ) )
                       -> IO b
-modifyVolatileStorage (Storage (_, ref)) modifier = do
-    atomicModifyIORef' ref modifier
+modifyVolatileStorage (Storage (_, ref)) =
+    atomicModifyIORef' ref
 

@@ -107,7 +107,7 @@ publishGame game = do
                                           ( uniqueGameWideKey game
                                           , runPut $ safePut game )
 
-        when replaced_something $ unwrap $ do
+        when replaced_something $ unwrap $
             stopInstancesByGameKey game_key >>= runStoppers
   where
     game_key = uniqueKey game
@@ -138,7 +138,7 @@ stopInstancesByGameKey game_key = SubscriptionIO $ do
 
         case M.lookup instance_key instances of
             Nothing -> return ()
-            Just (AnyGameInstance stopper channel_stop_informer) -> do
+            Just (AnyGameInstance stopper channel_stop_informer) ->
                 liftIO $ do
                     channel_stop_informer
                     modifyIORef' tmp_ref ((:) stopper)
@@ -187,7 +187,7 @@ procureInstance game storage = do
             chat_chan <- newBroadcastTChanIO
             subscribeLock <- newMVar True
             let stopper = stopInstance ginst
-                stopper_informer = do
+                stopper_informer =
                     modifyMVar_ subscribeLock $ \old -> do
                         when old $
                             atomically $ writeTChan outputs_chan Nothing
@@ -222,7 +222,7 @@ procureInstance game storage = do
                                       , _subscribeLock = subscribeLock }
 
                     liftIO $ void $ forkIO $
-                        finally (callback game_instance) $ do
+                        finally (callback game_instance) $
                             atomically $ writeTChan outputs_chan Nothing
                     return $ Just game_instance
   where
@@ -241,7 +241,7 @@ subscribe :: GameInstance game
                                --   is shown in the chat.
           -> IO (Either SubscribingFailure
                         (GameSubscription game))
-subscribe inst name = mask_ $ do
+subscribe inst name = mask_ $
     withMVar (_subscribeLock inst) $ \alive ->
         if alive
           then subscribe'
@@ -254,10 +254,10 @@ subscribe inst name = mask_ $ do
 
         dupped_output_chan <- atomically $ dupTChan outputs_chan
 
-        ref <- newFinalizableIORef () $ do
+        ref <- newFinalizableIORef () $
             atomically $ writeTChan broadcast_chan (Parted name)
 
-        return $ Right $
+        return $ Right
             GameSubscription { _inputsChannel = _inputsInstanceChannel inst
                              , _outputsChannel = dupped_output_chan
                              , _chatChannel = broadcast_chan
@@ -388,7 +388,7 @@ stop ginst = SubscriptionIO $ do
 
     liftIO $ do
         channel_stop_informer
-        void $ forkIO $ stopper
+        void $ forkIO stopper
   where
     game_key = _gameKey ginst
     instance_key = uniqueInstanceKey $ _gameInstance ginst

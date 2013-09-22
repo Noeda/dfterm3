@@ -1,7 +1,7 @@
 -- | WebSocket-based playing interface.
 --
 
-{-# LANGUAGE CPP, DeriveDataTypeable, OverloadedStrings #-}
+{-# LANGUAGE CPP, OverloadedStrings #-}
 
 module Dfterm3.Playing.WebInterface
     ( runWebSocket
@@ -21,9 +21,7 @@ import System.IO
 import Data.Array.IArray ( assocs, bounds )
 import Data.Serialize.Put
 import Data.Bits
-import Control.Exception ( mask )
 
-import Data.Typeable ( Typeable )
 import Data.Word
 import Data.Vector ( fromList )
 import Network
@@ -31,7 +29,6 @@ import Network.WebSockets
 import Control.Monad
 import Control.Monad.IO.Class ( liftIO )
 import Control.Concurrent
-import Control.Concurrent.STM
 import Control.Lens
 import qualified Network.Socket as S
 import Data.Enumerator hiding ( length, filter, head, concatMap )
@@ -122,11 +119,11 @@ receiveLogin user ps = do
 chooseYourGame :: User -> Storage -> WebSockets DftermProto ()
 chooseYourGame user ps = do
     games <- liftIO $
-        runSubscriptionIO ps $
+        runSubscriptionIO ps
         (lookForPublishedGames :: SubscriptionIO [DwarfFortressPersistent])
 
     sendJSON $ BL.toStrict $ J.encode (fromList
-                [ J.String $ "game_list"
+                [ J.String "game_list"
                 , J.Array $ fromList $
                     zipWith pairify
                         (fmap (J.String . (^. customName)) games)
@@ -142,7 +139,7 @@ chooseYourGame user ps = do
         maybe_ginstance <- liftIO $ procureInstance chosen_df ps
         case maybe_ginstance of
             Nothing -> return ()
-            Just ginstance -> do
+            Just ginstance ->
                 whenLoggedIn user $ \name -> do
                     maybe_subscription <- liftIO $ subscribe ginstance name
                     case maybe_subscription of
@@ -159,46 +156,33 @@ chooseYourGame user ps = do
             1 -> Just $ read $ BU.toString (B.tail (BL.toStrict msg))
             _ -> Nothing
 
-data Event = SubscriptionEvent !(GameSubscriptionEvent DwarfFortressPersistent)
-           | WebsocketEvent !T.Text
-
 gameLoop :: User
          -> Storage
          -> GameSubscription DwarfFortressPersistent
          -> WebSockets DftermProto ()
 gameLoop user ps subscription = do
     sink <- getSink
-    chan <- liftIO newTChanIO
 
     tid <- liftIO $
         forkIOWithUnmask $ \unmask ->
-            unmask (messageHandler sink chan)
-    tid2 <- liftIO $
-        forkIOWithUnmask $ \unmask ->
-            unmask (gameEventHandler subscription sink chan True)
+            unmask (gameEventHandler subscription sink True)
 
     -- Haxory to make sure those two above threads can be killed.
-    finref <- liftIO $ newFinalizableFinRef $ do
+    finref <- liftIO $ newFinalizableFinRef $
         killThread tid
-        killThread tid2
 
-    webSocketHandler (liftIO . atomically . writeTChan chan)
-                     user
+    webSocketHandler user
                      ps
                      subscription
-                     (killThread tid >> killThread tid2)
+                     (killThread tid)
 
     liftIO $ touchFinRef finref
 
-messageHandler :: Sink DftermProto -> TChan Event -> IO ()
-messageHandler _ _ = return ()
-
 gameEventHandler :: GameSubscription DwarfFortressPersistent
                  -> Sink DftermProto
-                 -> TChan Event
                  -> Bool
                  -> IO ()
-gameEventHandler subscription sink chan first = do
+gameEventHandler subscription sink first = do
     event <- waitForEvent subscription
     case event of
         InstanceClosed -> do
@@ -228,27 +212,26 @@ gameEventHandler subscription sink chan first = do
                 if first
                   then encodeStateToBinary terminal
                   else encodeChangesToBinary changes
-            gameEventHandler subscription sink chan False
+            gameEventHandler subscription sink False
   where
     sendJSON x =
         sendSink sink $ DataMessage $ Binary $ BL.singleton 2 `BL.append` x
-    recurse = gameEventHandler subscription sink chan first
+    recurse = gameEventHandler subscription sink first
 
 
-webSocketHandler :: (Event -> WebSockets DftermProto ())
-                 -> User
+webSocketHandler :: User
                  -> Storage
                  -> GameSubscription DwarfFortressPersistent
                  -> IO ()
                  -> WebSockets DftermProto ()
-webSocketHandler write_event user ps subscription killer = do
+webSocketHandler user ps subscription killer = do
     Text msg <- receiveDataMessage
     case B.head $ BL.toStrict msg of
         -- Unsubscribe
         2 -> liftIO killer >> stop
 
         -- Chat
-        3 -> do whenLoggedIn user $ \name ->
+        3 -> do whenLoggedIn user $ \_ ->
                     liftIO $ chat subscription
                                   (T.take 800 $ T.decodeUtf8 $
                                    BL.toStrict $ BL.tail msg)
@@ -261,7 +244,7 @@ webSocketHandler write_event user ps subscription killer = do
 
         _ -> recurse
   where
-    recurse = webSocketHandler write_event user ps subscription killer
+    recurse = webSocketHandler user ps subscription killer
     stop = return ()
 
     inputMsg msg up_or_down =

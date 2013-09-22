@@ -2,6 +2,7 @@
 --
 
 {-# LANGUAGE TemplateHaskell, DeriveDataTypeable, StandaloneDeriving #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Dfterm3.Admin.Internal.Types
     ( AdminStatePersistent(..)

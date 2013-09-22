@@ -43,7 +43,6 @@ import System.Process.Internals
 import Network
 
 import Data.IORef
-import Data.List ( find )
 import Data.Typeable ( Typeable )
 import Data.SafeCopy
 import Foreign.Storable ( sizeOf )
@@ -61,7 +60,6 @@ import Control.Lens
 import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as B8
 import qualified Data.Text as T
-import qualified Data.Map as M
 
 import qualified Data.Serialize.Get as S
 import qualified Data.Serialize.Put as S
@@ -158,7 +156,7 @@ instance PublishableGame DwarfFortressPersistent where
     procureInstance_ = procureDwarfFortress
 
 dfstate :: DFState (GameRawInstance DwarfFortressPersistent)
-dfstate = unsafePerformIO $ newDFState
+dfstate = unsafePerformIO newDFState
 {-# NOINLINE dfstate #-}
 
 lookForDwarfFortresses :: IO [DwarfFortressPersistent]
@@ -176,7 +174,7 @@ lookForDwarfFortresses =
 -- forget about it. You need to run it for Dfterm3 to be able to use Dwarf
 -- Fortresses.
 monitorDwarfFortresses :: IO ()
-monitorDwarfFortresses = void $ forkIO $ do
+monitorDwarfFortresses = void $ forkIO $
     void $ forM_ ports $ \port -> forkIO $ portChecker port
 
 ports :: [Word16]
@@ -293,7 +291,7 @@ dfhackConnection handle = do
         case input of
             DwarfFortressInput key_direction
                                _
-                               (Input code code_point shift alt ctrl) -> do
+                               (Input code code_point shift alt ctrl) ->
                 hSendByteString handle $ B.pack [1] `B.append` S.runPut (do
                     S.putWord32be (fromIntegral code)
                     S.putWord32be (fromIntegral code_point)
@@ -369,7 +367,7 @@ hGetOrDie _ 0          = return B.empty
 hGetOrDie handle bytes = do
     result <- B.hGet handle bytes
     if B.null result
-      then do logNotice $ "Connection lost to Dwarf Fortress."
+      then do logNotice "Connection lost to Dwarf Fortress."
               throwIO SilentlyDie
       else return result
 
@@ -465,22 +463,22 @@ launchDwarfFortress df mvar = do
 #endif
 
     (_, _, _, phandle) <-
-        createProcess (CreateProcess
-                                 { cmdspec = RawCommand
-                                             (_executable df)
-                                             []
-                                 , cwd = Just (_workingDirectory df)
-                                 , env = Just $ ("START_DFTERM3", "1"):old_env
-                                 , std_in = stream
-                                 , std_out = stream
-                                 , std_err = stream
-                                 , close_fds = True
-                                 , create_group = True })
+        createProcess CreateProcess
+                                { cmdspec = RawCommand
+                                            (_executable df)
+                                            []
+                                , cwd = Just (_workingDirectory df)
+                                , env = Just $ ("START_DFTERM3", "1"):old_env
+                                , std_in = stream
+                                , std_out = stream
+                                , std_err = stream
+                                , close_fds = True
+                                , create_group = True }
 
     maybe_pid <- pidOfHandle phandle
     logInfo $
-        "Created a process using executable '" ++ (_executable df)
-        ++ "', working directory '" ++ (_workingDirectory df) ++ "'" ++
+        "Created a process using executable '" ++ _executable df
+        ++ "', working directory '" ++ _workingDirectory df ++ "'" ++
         case maybe_pid of
             Nothing -> ""
             Just pid -> " to pid " ++ show pid
@@ -509,31 +507,23 @@ procurement raw_instance game_instance = do
     writeIORef (_parentInstance raw_instance) (Just game_instance)
     outputs_chan <- atomically $ dupTChan (_outputsChan raw_instance)
 
-    catchSilents_ $ do
-    forever $ do
-        ( maybe_new_changesets,
-          maybe_new_inputs,
-          maybe_new_death ) <-
-                atomically $ do
-                    results <- liftM3 (,,) (tryReadTChan outputs_chan)
-                                           (tryReceiveInputSTM game_instance)
-                                           (tryReadTChan death_chan)
-                    case results of
-                        (Nothing, Nothing, Nothing) -> retry
-                        _ -> return results
+    catchSilents_ $
+        forever $ do
+            ( maybe_new_changesets,
+              maybe_new_inputs,
+              maybe_new_death ) <-
+                    atomically $ do
+                        results <- liftM3 (,,)
+                            (tryReadTChan outputs_chan)
+                            (tryReceiveInputSTM game_instance)
+                            (tryReadTChan death_chan)
+                        case results of
+                            (Nothing, Nothing, Nothing) -> retry
+                            _ -> return results
 
-        case maybe_new_death of
-            Nothing -> return ()
-            Just _  -> do
-                throwIO SilentlyDie
-
-        case maybe_new_changesets of
-            Nothing -> return ()
-            Just new_changesets -> changesets game_instance new_changesets
-
-        case maybe_new_inputs of
-            Nothing -> return ()
-            Just new_inputs -> atomically $ writeTChan inputs_chan new_inputs
+            whenJust maybe_new_death $ \_ -> throwIO SilentlyDie
+            whenJust maybe_new_changesets $ changesets game_instance
+            whenJust maybe_new_inputs $ atomically . writeTChan inputs_chan
   where
     death_chan = _deathChan raw_instance
     inputs_chan = _inputsChan raw_instance

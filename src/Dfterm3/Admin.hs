@@ -57,9 +57,9 @@ newSessionByPassword password expiry_time (readPersistentStorage -> ps) = do
                                           now)
 
     did_it_work <- update ps (MaybeAddSessionByPassword session password)
-    if did_it_work
-      then return $ Just new_session_id
-      else return Nothing
+    return $ if did_it_work
+      then Just new_session_id
+      else Nothing
 
 newSessionID :: IO SessionID
 newSessionID = SessionID `fmap` randBytes 33
@@ -87,6 +87,6 @@ changePassword old_password new_password (readPersistentStorage -> ps) = do
     update ps (ChangePassword old_password (Just encrypted_pass))
 
 invalidateSessionID :: SessionID -> Storage -> IO ()
-invalidateSessionID sid (readPersistentStorage -> ps) = do
+invalidateSessionID sid (readPersistentStorage -> ps) =
     update ps (InvalidateSessionID sid)
 
