@@ -321,6 +321,10 @@ dfterm3_playing = function() {
             startGameList(msg);
         }
 
+        var insertToChat = function( dom_element ) {
+            chat_box.insertBefore( dom_element, chat_hr.nextSibling );
+        }
+
         var handleChatMessage = function(from_who, content) {
             var line = document.createElement("p");
             var from_who_span = document.createElement("span");
@@ -333,16 +337,52 @@ dfterm3_playing = function() {
 
             from_who_span.textContent = from_who + ":"
             content_span.textContent = content;
-            chat_box.insertBefore( line, chat_hr.nextSibling );
+
+            insertToChat( line );
+        }
+
+        var handleChatJoin = function( who ) {
+            var line = document.createElement("p");
+            var who_span = document.createElement("span");
+            var content_span = document.createElement("span");
+            who_span.setAttribute("class", "chat_from_who");
+            content_span.setAttribute("class", "chat_joinpart");
+
+            who_span.textContent = who;
+            content_span.textContent = " joined the game.";
+
+            line.appendChild( who_span );
+            line.appendChild( content_span );
+
+            insertToChat( line );
+        }
+        var handleChatPart = function( who ) {
+            var line = document.createElement("p");
+            var who_span = document.createElement("span");
+            var content_span = document.createElement("span");
+            who_span.setAttribute("class", "chat_from_who");
+            content_span.setAttribute("class", "chat_joinpart");
+
+            who_span.textContent = who;
+            content_span.textContent = " left the game.";
+
+            line.appendChild( who_span );
+            line.appendChild( content_span );
+
+            insertToChat( line );
         }
 
         var jsonMessage = function(msg) {
-            if ( msg[0] == "game_list" ) {
+            if ( msg[0] === "game_list" ) {
                 handleGameListMessage( msg[1] );
-            } else if ( msg[0] == "chat" ) {
+            } else if ( msg[0] === "chat" ) {
                 handleChatMessage( msg[1], msg[2] );
-            } else if ( msg[0] == "who_is_playing" ) {
+            } else if ( msg[0] === "who_is_playing" ) {
                 who_is_playing_box.textContent = "Last played by: " + msg[1];
+            } else if ( msg[0] === "chat_joined" ) {
+                handleChatJoin( msg[1] );
+            } else if ( msg[0] === "chat_parted" ) {
+                handleChatPart( msg[1] );
             }
         }
 

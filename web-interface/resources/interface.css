@@ -206,6 +206,9 @@ form[action="logout"] {
     font-weight: bold;
 }
 
+.chat_joinpart {
+}
+
 .chat_content {
     margin-left: 2em;
 }
