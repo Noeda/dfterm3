@@ -27,6 +27,7 @@ module Dfterm3.GameSubscription.Internal.Types
     , inputsInstanceChannel
     , outputsInstanceChannel
     , subscribeLock
+    , onlineUsers
     , gameKey
     , lock
     )
@@ -127,6 +128,7 @@ data Procurement game =
 data GameInstance game =
     GameInstance { _gameInstance :: GameRawInstance game
                  , _gameKey :: B.ByteString
+                 , _onlineUsers :: IORef (M.Map T.Text Int)
                  , _inputsInstanceChannel :: TChan (GameInputs game)
                  , _outputsInstanceChannel
                      :: TChan (Maybe (GameChangesets game))

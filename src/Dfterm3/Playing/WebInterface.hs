@@ -33,6 +33,7 @@ import Control.Lens
 import qualified Network.Socket as S
 import Data.Enumerator hiding ( length, filter, head, concatMap )
 import Data.Enumerator.Binary hiding ( zipWith, filter, head, concatMap )
+import qualified Data.Set as S
 import qualified Data.Aeson as J
 import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as BU
@@ -171,12 +172,23 @@ gameLoop user ps subscription = do
     finref <- liftIO $ newFinalizableFinRef $
         killThread tid
 
+    liftIO $ updatePlayerList sink subscription
+
     webSocketHandler user
                      ps
                      subscription
                      (killThread tid)
 
     liftIO $ touchFinRef finref
+
+updatePlayerList :: Sink DftermProto
+                 -> GameSubscription DwarfFortressPersistent
+                 -> IO ()
+updatePlayerList sink subscription = do
+    names <- getSubscriberNames' subscription
+    sendSink sink $ DataMessage $ Binary $ BL.singleton 2 `BL.append`
+        J.encode (fromList $ (J.String "player_list"):
+                             (fmap J.String $ S.toList names))
 
 gameEventHandler :: GameSubscription DwarfFortressPersistent
                  -> Sink DftermProto

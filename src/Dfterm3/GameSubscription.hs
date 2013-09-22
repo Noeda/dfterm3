@@ -45,6 +45,8 @@ module Dfterm3.GameSubscription
     , stop
     , waitForEvent
     , stopFromSubscriber
+    , getSubscriberNames
+    , getSubscriberNames'
     , Dfterm3.GameSubscription.gameKey
     , SubscribingFailure(..)
     , GameSubscription()
@@ -186,6 +188,8 @@ procureInstance game storage = do
             outputs_chan <- newBroadcastTChanIO
             chat_chan <- newBroadcastTChanIO
             subscribeLock <- newMVar True
+            online_users_ref <- newIORef M.empty
+
             let stopper = stopInstance ginst
                 stopper_informer =
                     modifyMVar_ subscribeLock $ \old -> do
@@ -216,6 +220,7 @@ procureInstance game storage = do
                     let game_instance =
                          GameInstance { _gameInstance = ginst
                                       , _gameKey = game_key
+                                      , _onlineUsers = online_users_ref
                                       , _inputsInstanceChannel = inputs_chan
                                       , _outputsInstanceChannel = outputs_chan
                                       , _chatBroadcastChannel = chat_chan
@@ -231,6 +236,17 @@ procureInstance game storage = do
 -- | Returns the raw instance from a `GameInstance`.
 rawInstance :: GameInstance game -> GameRawInstance game
 rawInstance = _gameInstance
+
+-- | Return the names of everyone currently subscribed to an instance.
+--
+-- This is a snapshot so by the time you read it, the subscriptions may have
+-- changed.
+getSubscriberNames :: GameInstance game -> IO (S.Set T.Text)
+getSubscriberNames game = M.keysSet `fmap` readIORef (_onlineUsers game)
+
+-- | Same as `getSusbcriberNames` but uses a `GameSubcription` value instead.
+getSubscriberNames' :: GameSubscription game -> IO (S.Set T.Text)
+getSubscriberNames' = getSubscriberNames . _subscriberGameInstance
 
 -- | Subscribe to a game instance.
 --
@@ -254,7 +270,18 @@ subscribe inst name = mask_ $
 
         dupped_output_chan <- atomically $ dupTChan outputs_chan
 
-        ref <- newFinalizableIORef () $
+        let online_users_ref = _onlineUsers inst
+
+        atomicModifyIORef' online_users_ref $ \old ->
+            ( M.insertWith (+) name 1 old, () )
+
+        ref <- newFinalizableIORef () $ do
+            atomicModifyIORef' online_users_ref $ \old ->
+                ( M.update (\x -> if x == 1 then Nothing
+                                            else Just (x-1))
+                           name
+                           old
+                , () )
             atomically $ writeTChan broadcast_chan (Parted name)
 
         return $ Right
