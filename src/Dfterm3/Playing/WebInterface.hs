@@ -211,7 +211,7 @@ gameEventHandler subscription sink first last_player = do
         GameChangesets (DwarfFortressChangesets terminal
                                                 changes
                                                 new_last_player) -> do
-            when (new_last_player /= last_player) $ do
+            when (new_last_player /= last_player) $
                 case new_last_player of
                     Nothing ->
                         sendJSON $ J.encode
