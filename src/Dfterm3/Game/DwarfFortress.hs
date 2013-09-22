@@ -137,7 +137,7 @@ instance PublishableGame DwarfFortressPersistent where
         , _dfVersionInstance :: T.Text
         , _runTid :: ThreadId
         , _parentInstance ::
-            IORef (Maybe (GameInstance DwarfFortressPersistent)) }
+            IORef (Either () (Maybe (GameInstance DwarfFortressPersistent))) }
 
     data GameInputs DwarfFortressPersistent =
         DwarfFortressInput !KeyDirection !T.Text !Input
@@ -258,7 +258,7 @@ dfhackConnection handle = do
         reapPid df_pid
         unregister df_executable_bs dfstate) $ do
 
-    parent_ref <- newIORef Nothing
+    parent_ref <- newIORef (Left ())
 
     let running_instance = DwarfFortressRunning { _pid = df_pid
                                                 , _handle = handle
@@ -453,11 +453,21 @@ procureDwarfFortress df = do
             maybe_ginst <- timeout 20000000 $ readMVar mvar
             case maybe_ginst of
                 Nothing    -> return Failed
-                Just ginst -> do
-                    parent <- readIORef (_parentInstance ginst)
-                    case parent of
-                        Nothing -> return Failed
-                        Just inst -> return $ ShareWithInstance inst
+                Just ginst -> getParent ginst
+  where
+    getParent ginst = do
+        result <- atomicModifyIORef' (_parentInstance ginst) $ \old ->
+            case old of
+                Left ()       -> ( Right Nothing, Left (0 :: Int))
+                Right Nothing -> ( Right Nothing, Left 1 )
+                Right (Just inst) -> ( Right (Just inst), Right inst )
+
+        case result of
+            Left 0 -> return $ LaunchedNewInstance
+                               ( ginst, procurement ginst )
+            Left 1 -> threadDelay 500000 >> getParent ginst
+            Left _ -> error "Impossible!"
+            Right inst -> return $ ShareWithInstance inst
 
 launchDwarfFortress :: DwarfFortressPersistent
                     -> MVar (GameRawInstance DwarfFortressPersistent)
@@ -514,7 +524,7 @@ procurement :: GameRawInstance DwarfFortressPersistent
             -> GameInstance DwarfFortressPersistent
             -> IO ()
 procurement raw_instance game_instance = do
-    writeIORef (_parentInstance raw_instance) (Just game_instance)
+    writeIORef (_parentInstance raw_instance) (Right $ Just game_instance)
     outputs_chan <- atomically $ dupTChan (_outputsChan raw_instance)
 
     catchSilents_ $
