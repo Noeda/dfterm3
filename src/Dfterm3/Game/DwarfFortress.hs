@@ -67,6 +67,10 @@ import qualified Data.Serialize.Put as S
 import qualified Data.Aeson as J
 import Data.Aeson ( (.:) )
 
+#ifdef WINDOWS
+import qualified System.Win32.Process as W
+#endif
+
 #ifndef WINDOWS
 import System.Posix.Signals
 foreign import ccall safe "wait_pid" c_wait_pid :: CInt -> IO ()
@@ -190,7 +194,7 @@ portChecker port = mask $ \restore -> forever $ do
         killThread tid
     -- Have somewhat random delay.
     -- This is to evenly distribute load.
-    delay <- randomRIO (5000000, 20000000)
+    delay <- randomRIO (5000000, 10000000)
     threadDelay delay
 
 -- | Data type to throw an exception without writing to stderr or stdout or
@@ -450,7 +454,7 @@ procureDwarfFortress df = do
     case mvar_status of
         PleaseProcure mvar -> launchDwarfFortress df mvar
         AlreadyProcuring mvar -> do
-            maybe_ginst <- timeout 20000000 $ readMVar mvar
+            maybe_ginst <- timeout 25000000 $ readMVar mvar
             case maybe_ginst of
                 Nothing    -> return Failed
                 Just ginst -> getParent ginst
@@ -504,7 +508,7 @@ launchDwarfFortress df mvar = do
             Just pid -> " to pid " ++ show pid
 
     onException (do
-        maybe_ginst <- timeout 20000000 $ readMVar mvar
+        maybe_ginst <- timeout 25000000 $ readMVar mvar
         case maybe_ginst of
             Nothing    -> undoProcess phandle >> return Failed
             Just ginst -> return $ LaunchedNewInstance
@@ -516,9 +520,17 @@ launchDwarfFortress df mvar = do
 pidOfHandle :: ProcessHandle -> IO (Maybe DFPid)
 pidOfHandle phandle =
     withProcessHandle phandle $ \p ->
+#ifdef WINDOWS
+        case p of
+            ClosedHandle _ -> return (p, Nothing)
+            OpenHandle pid -> do
+                real_pid <- W.getProcessId pid
+                return (p, Just $ fromIntegral real_pid)
+#else
         return $ case p of
             ClosedHandle _ -> (p, Nothing)
             OpenHandle pid -> (p, Just $ fromIntegral pid)
+#endif
 
 procurement :: GameRawInstance DwarfFortressPersistent
             -> GameInstance DwarfFortressPersistent

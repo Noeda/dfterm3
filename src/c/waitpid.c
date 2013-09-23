@@ -1,5 +1,5 @@
 
-#ifndef WINDOWS
+#ifndef __WIN32__
 #include <sys/wait.h>
 #include <signal.h>
 #include <errno.h>

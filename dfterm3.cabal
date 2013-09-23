@@ -79,14 +79,15 @@ library
                       ,websockets ==0.7.*
                       ,vector ==0.10.*
 
+  c-sources:     src/c/waitpid.c
+
   if os(mingw32)
-      build-depends:  Win32 ==2.2.*
+      build-depends:  Win32 ==2.3.*
       cpp-options:    "-DWINDOWS"
   else
       build-depends:  unix ==2.6.*
                      ,daemons ==0.2.*
                      ,HsOpenSSL ==0.10.*
-      c-sources:     src/c/waitpid.c
 
 executable dfterm3
   hs-source-dirs:      main
@@ -96,10 +97,14 @@ executable dfterm3
   build-depends:       dfterm3
                       ,base ==4.6.*
                       ,network ==2.4.*
-                      ,HsOpenSSL ==0.10.*
-                      ,unix ==2.6.*
-                      ,daemons ==0.2.*
                       ,text ==0.11.*
                       ,directory ==1.2.*
 
+  if os(mingw32)
+      build-depends:  Win32 ==2.3.*
+      cpp-options:    "-DWINDOWS"
+  else
+      build-depends:  unix ==2.6.*
+                     ,daemons ==0.2.*
+                     ,HsOpenSSL ==0.10.*
 
