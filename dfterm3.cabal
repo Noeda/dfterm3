@@ -15,7 +15,7 @@ author:              Mikko Juola
 maintainer:          mikjuo@gmail.com
 copyright:           Copyright (c) 2013 Mikko Juola
 category:            Network
-build-type:          Simple
+build-type:          Custom
 cabal-version:       >=1.8
 
 source-repository head
@@ -103,6 +103,7 @@ executable dfterm3
   if os(mingw32)
       build-depends:  Win32 ==2.3.*
       cpp-options:    "-DWINDOWS"
+      ld-options:     icon/icon.o
   else
       build-depends:  unix ==2.6.*
                      ,daemons ==0.2.*
