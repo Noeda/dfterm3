@@ -4,6 +4,8 @@
 -- convenient in Dfterm3.
 --
 
+{-# LANGUAGE ViewPatterns #-}
+
 module Dfterm3.Logging
     ( initializeLogging
     , logInfo
@@ -41,11 +43,15 @@ initializeLogging sys = do
         updateGlobalLogger rootLoggerName $
             setLevel INFO . setHandlers [syslog_handler]
 
+isSimplistic :: LoggingSystem -> Bool
+isSimplistic Simple = True
+isSimplistic Syslog = False
+
 stamp :: String -> IO String
 stamp string = do
     sys <- readIORef currentSystem
     case sys of
-        Simple -> do
+        (isSimplistic -> True) -> do
             utc_time <- getCurrentTime
             tz <- getTimeZone utc_time
             let ZonedTime (LocalTime day (TimeOfDay hour minute sec)) _ =
@@ -54,7 +60,7 @@ stamp string = do
                            ":" ++ pad 2 (show minute) ++ ":" ++
                            pad 2 (show (floor sec :: Int)) ++
                            " : " ++ string
-        Syslog -> return string
+        _ -> return string
   where
     pad :: Int -> String -> String
     pad len str

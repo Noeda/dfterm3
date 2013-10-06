@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, CPP #-}
+{-# LANGUAGE DeriveDataTypeable, CPP, ForeignFunctionInterface #-}
 
 module Main ( main ) where
 
@@ -21,11 +21,13 @@ import System.Environment ( getArgs )
 import System.Console.GetOpt
 import System.Exit
 import System.IO
+import Data.List ( find )
 
 #ifndef WINDOWS
 import System.Posix.Daemon
 import System.Posix.Files
 import OpenSSL ( withOpenSSL )
+
 #endif
 
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
@@ -158,6 +160,8 @@ run options
     admin_panels = filter isAdminPanelOption options
     websocket_ports = filter isWebsocketPortOption options
     websocket_http_ports = filter isWebsocketHTTPOption options
+
+    unwrap_admin_port (AdminPanel port) = port
 
     should_daemonize = any isDaemonizeOption options
     should_set_admin_password = SetAdminPassword `elem` options

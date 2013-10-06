@@ -92,7 +92,8 @@ library
 executable dfterm3
   hs-source-dirs:      main
   ghc-options:         -Wall -threaded -fno-warn-name-shadowing
-  main-is:             RealMain.hs
+  main-is:           RealMain.hs
+
   other-modules:       ConfiguredDefaults
   build-depends:       dfterm3
                       ,base ==4.6.*
@@ -102,6 +103,7 @@ executable dfterm3
 
   if os(mingw32)
       build-depends:  Win32 ==2.3.*
+      cc-options:     "-DWINDOWS"
       cpp-options:    "-DWINDOWS"
       ld-options:     icon/icon.o
   else
