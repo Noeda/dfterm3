@@ -12,6 +12,9 @@ module Dfterm3.Admin
     , isValidSessionID
     , byteStringToSessionID
     , setAdminPassword
+    , setNoAuthentication
+    , setNoAuthentication'
+    , hasNoAuthentication
     , changePassword )
     where
 
@@ -69,13 +72,21 @@ isValidSessionID sid (readPersistentStorage -> ps) = do
     now <- getCurrentTime
     query ps (IsValidSessionID sid now)
 
+setNoAuthentication' :: Storage -> IO ()
+setNoAuthentication' (readPersistentStorage -> ps) =
+    update ps (SetEncryptedAdminPassword (NoAuthentication))
+
+setNoAuthentication :: B.ByteString -> Storage -> IO Bool
+setNoAuthentication old_password (readPersistentStorage -> ps) =
+    update ps (ChangePassword old_password NoAuthentication)
+
 setAdminPassword :: Maybe B.ByteString
                  -> Storage
                  -> IO ()
 setAdminPassword password (readPersistentStorage -> ps) = do
     encrypted_password <- case password of
-        Nothing -> return Nothing
-        Just  p -> Just `fmap` encryptPass' (Pass p)
+        Nothing -> return AlwaysDenied
+        Just  p -> Password `fmap` encryptPass' (Pass p)
     update ps (SetEncryptedAdminPassword encrypted_password)
 
 changePassword :: B.ByteString
@@ -84,9 +95,16 @@ changePassword :: B.ByteString
                -> IO Bool
 changePassword old_password new_password (readPersistentStorage -> ps) = do
     encrypted_pass <- encryptPass' (Pass new_password)
-    update ps (ChangePassword old_password (Just encrypted_pass))
+    update ps (ChangePassword old_password (Password encrypted_pass))
 
 invalidateSessionID :: SessionID -> Storage -> IO ()
 invalidateSessionID sid (readPersistentStorage -> ps) =
     update ps (InvalidateSessionID sid)
+
+hasNoAuthentication :: Storage -> IO Bool
+hasNoAuthentication (readPersistentStorage -> ps) = do
+    scheme <- query ps GetEncryptedAdminPassword
+    return $ case scheme of
+        NoAuthentication -> True
+        _ -> False
 

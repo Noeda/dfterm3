@@ -19,21 +19,22 @@ import Crypto.Scrypt
 import qualified Data.ByteString as B
 import qualified Data.Map as M
 
-getEncryptedAdminPassword :: Query PersistentStorageState (Maybe EncryptedPass)
+getEncryptedAdminPassword :: Query PersistentStorageState AccessRequired
 getEncryptedAdminPassword = view (admin . adminPassword)
 
-setEncryptedAdminPassword :: Maybe EncryptedPass
+setEncryptedAdminPassword :: AccessRequired
                           -> Update PersistentStorageState ()
 setEncryptedAdminPassword pass = admin . adminPassword .= pass
 
 changePassword :: B.ByteString
-               -> Maybe EncryptedPass
+               -> AccessRequired
                -> Update PersistentStorageState Bool
 changePassword old_password encrypted_new_pass = do
     maybe_old_encrypted_pass <- liftQuery getEncryptedAdminPassword
     case maybe_old_encrypted_pass of
-        Nothing -> set_new
-        Just old_encrypted_pass ->
+        AlwaysDenied -> set_new
+        NoAuthentication -> set_new
+        Password old_encrypted_pass ->
             let ( succeeded, _ ) = verifyPass defaultParams
                                               (Pass old_password)
                                               old_encrypted_pass
@@ -50,8 +51,9 @@ maybeAddSessionByPassword :: Session
 maybeAddSessionByPassword session@(Session sid _) password = do
     encrypted_pass <- use (admin . adminPassword)
     case encrypted_pass of
-        Nothing -> return False
-        Just epass -> checkPass epass
+        AlwaysDenied -> return False
+        NoAuthentication -> return True
+        Password epass -> checkPass epass
   where
     checkPass epass = do
         let ( succeeded, maybe_new_pass ) =
@@ -59,7 +61,7 @@ maybeAddSessionByPassword session@(Session sid _) password = do
         if succeeded
           then do admin . sessions %= M.insert sid session
                   whenJust maybe_new_pass $ \new_pass ->
-                      admin . adminPassword .= Just new_pass
+                      admin . adminPassword .= Password new_pass
                   return True
           else return False
 

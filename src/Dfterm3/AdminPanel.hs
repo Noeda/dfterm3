@@ -90,6 +90,10 @@ adminPanel ps =
 
               mustHaveValidSessionID session_id ps
               showAdminPanelAuthenticated session_id
+         
+         , do result <- liftIO $ hasNoAuthentication ps
+              unless result mzero
+              showAdminPanelAuthenticated (byteStringToSessionID B.empty)
 
          , loginScreen ]
   where
@@ -211,6 +215,8 @@ adminPanelContents ps flashmsg = do
         (lookForPotentialGames :: SubscriptionIO [DwarfFortressPersistent])
         (lookForPublishedGames :: SubscriptionIO [DwarfFortressPersistent])
 
+    show_password_html <- liftIO $ not `fmap` hasNoAuthentication ps
+
     H.ok . H.toResponse $ heading $
         L.div ! A.class_ "admin_content" $ do
             case flashmsg of
@@ -220,7 +226,7 @@ adminPanelContents ps flashmsg = do
                     L.div ! A.class_ "admin_flash_success" $ L.p (L.toHtml msg)
                 NoMsg -> return ()
             logoutHtml
-            changePasswordHtml
+            when show_password_html changePasswordHtml
             listOfPotentialGames potential
             listOfPublishedGames published
             manualAddGameHtml

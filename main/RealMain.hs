@@ -33,7 +33,7 @@ import OpenSSL ( withOpenSSL )
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
 import Network ( withSocketsDo )
 import Control.Concurrent ( threadDelay, forkIO )
-import Control.Monad ( forever, void, forM_, when )
+import Control.Monad ( forever, void, forM_, when, unless )
 
 #ifdef WINDOWS
 withOpenSSL :: IO a -> IO a
@@ -178,7 +178,7 @@ run options
                               then Syslog
                               else Simple
 
-        logInfo "Dfterm3 starting up."
+        logInfo "Dfterm3 0.3 starting up."
 
         -- Make sure we get to use all the cores. The unfortunate side effect
         -- is that the rtsopt -N is ignored.
@@ -201,6 +201,29 @@ run options
                                 forkIO $ runAdminPanel
                                              port
                                              storage
+
+        threadDelay 500000
+
+        -- Print out instructions for dummies. Just don't tell them they are dummies.
+        unless (null admin_panels) $ do
+            putStrLn ""
+            putStrLn "Use any of the following URIs to access the administrator panel:"
+            putStrLn ""
+            forM_ admin_panels $ \(AdminPanel port) -> do
+                putStrLn $ "http://127.0.0.1:" ++ show port ++ "/admin/"
+            putStrLn ""
+
+        unless (null websocket_http_ports) $ do
+            putStrLn ""
+            putStrLn "Use any of the following URIs to access the playing interface:"
+            putStrLn ""
+            forM_ websocket_http_ports $ \(WebsocketHTTP port) -> do
+                putStrLn $ "http://127.0.0.1:" ++ show port ++ "/"
+            putStrLn ""
+            putStrLn "If you want to access the interface from outside your computer, you "
+            putStrLn "need to replace '127.0.0.1' with your real IP address."
+            putStrLn ""
+
 
         forM_ websocket_ports $ \(Websocket port) ->
                                    forkIO $ runWebSocket
@@ -265,6 +288,11 @@ setAdminPassword ps = do
               case disabling of
                   "y"   -> A.setAdminPassword Nothing ps
                   "yes" -> A.setAdminPassword Nothing ps
-                  _ -> putStrLn "Doing nothing."
+                  _ -> do putStrLn "Allow access without authentication? (y/n)"
+                          no_auth <- getLine
+                          case no_auth of
+                              "y"   -> A.setNoAuthentication' ps
+                              "yes" -> A.setNoAuthentication' ps
+                              _ -> putStrLn "Doing nothing."
       else A.setAdminPassword (Just $ T.encodeUtf8 $ T.pack line) ps
 
