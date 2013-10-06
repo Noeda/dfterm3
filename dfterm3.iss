@@ -6,6 +6,11 @@ DefaultGroupName=Dfterm3
 LicenseFile=LICENSE
 VersionInfoVersion=0.3
 
+[Icons]
+Name: "{group}\Dfterm3 server"; Filename: "{app}\dfterm3.exe"; WorkingDir: "{app}"
+Name: "{group}\Uninstall Dfterm3"; Filename: "{uninstallexe}"
+Name: "{commondesktop}\Dfterm3 server"; Filename: "{app}\dfterm3.exe"; WorkingDir: "{app}"
+
 [Files]
 Source: "dist\build\Dfterm3\dfterm3.exe"; DestDir: "{app}"; Flags: replacesameversion
 Source: "web-interface\admin-login.html"; DestDir: "{app}\web-interface"
