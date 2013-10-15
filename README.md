@@ -5,8 +5,27 @@ This is a remote Dwarf Fortress playing software. It quite unfinished but it
 somewhat works. You can play and chat while enjoying Dwarves killing
 themselves.
 
-Installation instructions
--------------------------
+The "official" site for Dfterm3 is just a forum thread in the bay12 forums:
+
+<http://www.bay12forums.com/smf/index.php?topic=129995.90>.
+
+Overview
+--------
+
+Dfterm3 as a software has two parts. One part is the Dfterm3 server and the
+other is a Dfhack Dfterm3 plugin\[1\] (which currently works only on modified
+Dfhack\[2\]). The Dfterm3 server acts as a HTTP and WebSocket server that
+together implement a web interface for playing Dwarf Fortress. The Dfhack
+Dfterm3 plugin runs with Dfhack in the Dwarf Fortress process and talks with
+the Dfterm3 server to manage screen data and input from the web interface to
+Dwarf Fortress.
+
+[1] <https://github.com/Noeda/dfterm3-plugin>
+
+[2] <https://github.com/Noeda/dfhack>
+
+Installation instructions for dummies
+-------------------------------------
 
 These instructions are for Linux. Not everything works properly in Linux; for
 example, launching Dwarf Fortresses has problems.

@@ -15,7 +15,7 @@ author:              Mikko Juola
 maintainer:          mikjuo@gmail.com
 copyright:           Copyright (c) 2013 Mikko Juola
 category:            Network
-build-type:          Simple
+build-type:          Custom
 cabal-version:       >=1.8
 
 source-repository head
@@ -25,73 +25,89 @@ source-repository head
 library
   hs-source-dirs:      src
   ghc-options:         -Wall -fno-warn-name-shadowing
-  exposed-modules:     MockMain
-                       ConfiguredDefaults
-                       Dfterm3.AdminPanel
-                       Dfterm3.ChatChannel
-                       Dfterm3.CP437Game
-                       Dfterm3.Dfterm3Monad
-                       Dfterm3.DwarfFortress
-                       Dfterm3.DwarfFortress.Process
-                       Dfterm3.DwarfFortress.Types
-                       Dfterm3.GamePool
+  exposed-modules:     Dfterm3.GameSubscription
+                       Dfterm3.Dfterm3State
+                       Dfterm3.Terminal
                        Dfterm3.Logging
-                       Dfterm3.Safe
-                       Dfterm3.ServiceKiller
-                       Dfterm3.User
-                       Dfterm3.User.Types
-                       Dfterm3.UserVolatile
+                       Dfterm3.Game.DwarfFortress
+                       Dfterm3.AdminPanel
+                       Dfterm3.Admin
+                       Dfterm3.Playing.WebInterface
+  other-modules:       Dfterm3.GameSubscription.Internal.Transactions
+                       Dfterm3.GameSubscription.Internal.Types
+                       Dfterm3.GameSubscription.Internal.SubscriptionIO
+                       Dfterm3.Dfterm3State.Internal.Transactions
+                       Dfterm3.Dfterm3State.Internal.Types
+                       Dfterm3.Game.DwarfFortress.Internal.Running
                        Dfterm3.Util
-                       Dfterm3.WebsocketAccepter
-                       Dfterm3.WebsocketClient
-                       Dfterm3.WebsocketHTTP
+                       Dfterm3.User
+                       Dfterm3.Admin.Internal.Types
+                       Dfterm3.Admin.Internal.Transactions
+                       Dfterm3.CP437ToUnicode
+
+  c-sources:           src/c/wcwidth.c
 
   build-depends:       base ==4.6.*
-                      ,websockets ==0.7.*
-                      ,hslogger ==1.2.*
-                      ,network ==2.4.*
-                      ,time ==1.4.*
-                      ,enumerator ==0.4.*
+                      ,safecopy ==0.8.*
                       ,transformers ==0.3.*
+                      ,mtl ==2.1.*
+                      ,acid-state ==0.12.*
+                      ,bytestring ==0.10.*
                       ,text ==0.11.*
                       ,lens ==3.9.*
-                      ,array ==0.4.*
-                      ,containers ==0.5.*
-                      ,mtl ==2.1.*
-                      ,random ==1.0.*
-                      ,stm ==2.4.*
-                      ,bytestring ==0.10.*
-                      ,binary ==0.7.*
                       ,cereal ==0.3.*
+                      ,containers ==0.5.*
+                      ,stm ==2.4.*
+                      ,random ==1.0.*
+                      ,directory ==1.2.*
+                      ,array ==0.4.*
+                      ,utf8-string ==0.3.*
                       ,type-level ==0.2.*
                       ,protobuf ==0.1.*
-                      ,directory ==1.2.*
-                      ,acid-state ==0.11.*
-                      ,safecopy ==0.8.*
+                      ,process ==1.1.*
+                      ,time ==1.4.*
+                      ,hslogger ==1.2.*
+                      ,network ==2.4.*
+                      ,filepath ==1.3.*
                       ,scrypt ==0.3.*
-                      ,utf8-string ==0.3.*
-                      ,base64-bytestring ==1.0.*
-                      ,happstack-server ==7.3.*
-                      ,aeson ==0.6.*
-                      ,vector ==0.10.*
                       ,blaze-html ==0.6.*
                       ,blaze-markup ==0.5.*
-                      ,filepath ==1.3.*
-                      ,process ==1.1.*
+                      ,happstack-server ==7.3.*
+                      ,base64-bytestring ==1.0.*
+                      ,aeson ==0.6.*
+                      ,enumerator ==0.4.*
+                      ,websockets ==0.7.*
+                      ,vector ==0.10.*
+
+  c-sources:     src/c/waitpid.c
 
   if os(mingw32)
-      build-depends:  Win32 ==2.2.*
+      build-depends:  Win32 ==2.3.*
       cpp-options:    "-DWINDOWS"
   else
       build-depends:  unix ==2.6.*
-                     ,daemons ==0.1.*
+                     ,daemons ==0.2.*
                      ,HsOpenSSL ==0.10.*
 
 executable dfterm3
   hs-source-dirs:      main
   ghc-options:         -Wall -threaded -fno-warn-name-shadowing
-  main-is:             RealMain.hs
+  main-is:           RealMain.hs
+
+  other-modules:       ConfiguredDefaults
   build-depends:       dfterm3
                       ,base ==4.6.*
+                      ,network ==2.4.*
+                      ,text ==0.11.*
+                      ,directory ==1.2.*
 
+  if os(mingw32)
+      build-depends:  Win32 ==2.3.*
+      cc-options:     "-DWINDOWS"
+      cpp-options:    "-DWINDOWS"
+      ld-options:     icon/icon.o
+  else
+      build-depends:  unix ==2.6.*
+                     ,daemons ==0.2.*
+                     ,HsOpenSSL ==0.10.*
 

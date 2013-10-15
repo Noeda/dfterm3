@@ -15,8 +15,6 @@ dfterm3_playing = function() {
     var LOGIN_ACCEPTED = 4;
     var GAME_IS_GONE = 5;
 
-    var logged_in = false;
-
     if ( WebSocket === undefined ) {
         exports.websockets_are_supported = false;
         return exports;
@@ -47,6 +45,17 @@ dfterm3_playing = function() {
 
         var go_back_button = document.createElement("div");
         var go_back_button_a = document.createElement("a");
+
+        var player_listing_div = document.createElement("div");
+        var num_players_p = document.createElement("p");
+        num_players_p.textContent = "";
+
+        var list_dom_element = document.createElement("ul");
+        player_listing_div.appendChild( num_players_p );
+        player_listing_div.appendChild( list_dom_element );
+        player_listing_div.setAttribute("class", "player_listing");
+        player_listing_div.style.display = "none";
+
         go_back_button_a.textContent = "Go back to game list";
         go_back_button_a.setAttribute("href", "#");
         go_back_button.appendChild(go_back_button_a);
@@ -76,8 +85,6 @@ dfterm3_playing = function() {
         game_is_gone_box.textContent = "Game is not active";
         game_is_gone_box.style.display = "none";
 
-
-
         var who_is_playing_box = document.createElement("h3");
         var resetWhoIsPlaying = function() {
             who_is_playing_box.textContent = "No one is currently playing";
@@ -86,26 +93,7 @@ dfterm3_playing = function() {
         who_is_playing_box.setAttribute("id", "who_is_playing");
 
         var chat_box = document.createElement("div");
-        var login_form = document.createElement("form");
-        var login_text = document.createElement("input");
-        var login_title = document.createElement("h3");
-        var login_label = document.createElement("label");
-        var login_hint = document.createElement("h4");
 
-        login_hint.setAttribute("id", "login_hint");
-        login_hint.textContent = "You need to login before you can play.";
-        login_form.setAttribute("action", "#chat");
-        login_text.setAttribute("type", "text");
-        login_label.textContent = "User name:";
-        login_form.appendChild( login_title );
-        login_form.appendChild( login_hint );
-        login_form.appendChild(login_label);
-        login_form.appendChild( login_text );
-        login_text.setAttribute("id", "login_text");
-        login_text.setAttribute("maxlength", 20);
-        login_title.textContent = "Login";
-
-        chat_box.appendChild( login_form );
         chat_box.setAttribute( "class", "chat" );
         var chat_title = document.createElement("h3");
         chat_title.textContent = "Chat";
@@ -115,7 +103,6 @@ dfterm3_playing = function() {
         var chat_hr = document.createElement("hr")
         chat_form.setAttribute("action", "#chat");
         chat_text.setAttribute("type", "text");
-        chat_text.style.display = "none";
         chat_text.setAttribute("maxlength", 800);
         chat_form.appendChild( chat_text );
         chat_box.appendChild( chat_form );
@@ -128,14 +115,6 @@ dfterm3_playing = function() {
             }
         }
 
-        login_form.onsubmit = function (event) {
-            var login_name = login_text.value;
-            login_text.value = "";
-
-            socket.send("\x04" + login_name);
-            event.preventDefault();
-        }
-
         chat_form.onsubmit = function (event) {
             var msg = chat_text.value;
             chat_text.value = "";
@@ -145,6 +124,7 @@ dfterm3_playing = function() {
         }
 
         host_dom_element.appendChild( cover );
+        host_dom_element.appendChild( player_listing_div );
         host_dom_element.appendChild( terminal_dom_element );
 
         status_element.textContent =
@@ -193,6 +173,8 @@ dfterm3_playing = function() {
             terminal_dom_element.removeChild( chat_box );
             terminal = undefined;
 
+            player_listing_div.style.display = "none";
+
             resetWhoIsPlaying();
             clearChat();
         }
@@ -214,6 +196,7 @@ dfterm3_playing = function() {
 
             who_is_playing_box.style.display = "inline";
             game_is_gone_box.style.display = "none";
+            player_listing_div.style.display = "inline";
 
             terminal.getDOMObject().setAttribute("tabindex", 1);
 
@@ -351,6 +334,10 @@ dfterm3_playing = function() {
             startGameList(msg);
         }
 
+        var insertToChat = function( dom_element ) {
+            chat_box.insertBefore( dom_element, chat_hr.nextSibling );
+        }
+
         var handleChatMessage = function(from_who, content) {
             var line = document.createElement("p");
             var from_who_span = document.createElement("span");
@@ -363,17 +350,146 @@ dfterm3_playing = function() {
 
             from_who_span.textContent = from_who + ":"
             content_span.textContent = content;
-            chat_box.insertBefore( line, chat_hr.nextSibling );
+
+            insertToChat( line );
+        }
+
+        var updateNumPlayers = function() {
+            var num = list_dom_element.children.length;
+            if ( num === 0 ) {
+                num_players_p.textContent = "No watchers here.";
+            } else if ( num === 1 ) {
+                num_players_p.textContent = "1 watcher.";
+            } else {
+                num_players_p.textContent = num + " watchers.";
+            }
+        }
+
+        var handleChatJoin = function( who ) {
+            var line = document.createElement("p");
+            var who_span = document.createElement("span");
+            var content_span = document.createElement("span");
+            who_span.setAttribute("class", "chat_from_who");
+            content_span.setAttribute("class", "chat_joinpart");
+
+            who_span.textContent = who;
+            content_span.textContent = " joined the game.";
+
+            line.appendChild( who_span );
+            line.appendChild( content_span );
+
+            insertToChat( line );
+
+            var elem = document.createElement("li");
+            elem.textContent = who;
+            list_dom_element.appendChild( elem );
+            updateNumPlayers();
+        }
+        var handleChatPart = function( who ) {
+            var line = document.createElement("p");
+            var who_span = document.createElement("span");
+            var content_span = document.createElement("span");
+            who_span.setAttribute("class", "chat_from_who");
+            content_span.setAttribute("class", "chat_joinpart");
+
+            who_span.textContent = who;
+            content_span.textContent = " left the game.";
+
+            line.appendChild( who_span );
+            line.appendChild( content_span );
+
+            insertToChat( line );
+
+            var children = list_dom_element.children;
+            var remove_us = [];
+            for ( var i = 0; i < children.length; ++i ) {
+                if ( children[i].textContent === who ) {
+                    remove_us.push( children[i] );
+                }
+            }
+            for ( var i = 0; i < remove_us.length; ++i ) {
+                list_dom_element.removeChild( remove_us[i] );
+            }
+
+            updateNumPlayers();
+        }
+
+        var handlePlayerList = function( array, first_index ) {
+            while ( list_dom_element.hasChildNodes() ) {
+                list_dom_element.removeChild( list_dom_element.lastChild );
+            }
+
+            for ( var i = first_index; i < array.length; ++i ) {
+                var elem = document.createElement("li");
+                elem.textContent = array[i];
+                list_dom_element.appendChild( elem );
+            }
+            updateNumPlayers();
         }
 
         var jsonMessage = function(msg) {
-            if ( msg[0] == "game_list" ) {
+            if ( msg[0] === "game_list" ) {
                 handleGameListMessage( msg[1] );
-            } else if ( msg[0] == "chat" ) {
+            } else if ( msg[0] === "chat" ) {
                 handleChatMessage( msg[1], msg[2] );
-            } else if ( msg[0] == "who_is_playing" ) {
+            } else if ( msg[0] === "who_is_playing" ) {
                 who_is_playing_box.textContent = "Last played by: " + msg[1];
+            } else if ( msg[0] === "chat_joined" ) {
+                handleChatJoin( msg[1] );
+            } else if ( msg[0] === "chat_parted" ) {
+                handleChatPart( msg[1] );
+            } else if ( msg[0] === "player_list" ) {
+                handlePlayerList( msg, 1 );
             }
+        }
+
+        var login_part = function() {
+            var login_part = document.createElement("div");
+            login_part.setAttribute("class", "auth_part");
+            var form = document.createElement("form");
+            var legend = document.createElement("legend");
+            legend.textContent = "Choose a name for yourself";
+            var label = document.createElement("label");
+            label.setAttribute("for", "username");
+            label.textContent = "Name:";
+            var input = document.createElement("input");
+            input.setAttribute("autofocus", "autofocus");
+            input.setAttribute("name", "username");
+            input.setAttribute("type", "text");
+            input.setAttribute("maxlength", 20);
+            var submit = document.createElement("input");
+            submit.setAttribute("type", "submit");
+            submit.setAttribute("value", "Login");
+
+            login_part.appendChild(form);
+            form.appendChild(legend);
+            form.appendChild(document.createElement("hr"));
+            form.appendChild(label);
+            form.appendChild(input);
+            form.appendChild(document.createElement("br"));
+            form.appendChild(document.createElement("hr"));
+            form.appendChild(submit);
+
+            form.addEventListener( "submit"
+                                   , function( event ) {
+                                       var name = input.value;
+                                       input.value = "";
+
+                                       socket.send("\x04" + name);
+                                       event.preventDefault();
+                                   } );
+
+            host_dom_element.appendChild( login_part );
+
+            return login_part;
+        }();
+
+        var showLoginBox = function() {
+            login_part.style.display = "block";
+        }
+
+        var hideLoginBox = function() {
+            login_part.style.display = "none";
         }
 
         showCover();
@@ -382,6 +498,7 @@ dfterm3_playing = function() {
         socket.onopen = function() {
             status("Connection established.", false );
             hideCover();
+            showLoginBox();
         }
         socket.onclose = function() {
             status("No connection to server.", true );
@@ -405,8 +522,7 @@ dfterm3_playing = function() {
                     status( "Login rejected", true );
                 } else if ( array_view[0] == LOGIN_ACCEPTED ) {
                     status( "Logged in", false );
-                    chat_text.style.display = "block";
-                    login_form.style.display = "none";
+                    hideLoginBox();
                 } else if ( array_view[0] == GAME_IS_GONE ) {
                     game_is_gone_box.style.display = "inline";
                     who_is_playing_box.style.display = "none";
