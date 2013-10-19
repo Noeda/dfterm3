@@ -172,6 +172,25 @@ $(function(){
 		}
 		_I.logout_confirmation.show();
 	});
+
+	/*
+	 * Confirmation for unregistering games
+	 */
+	$('form[action=modify_game] input[type=submit][name=unregister]').click(function(e){
+		e.preventDefault();
+		var form = $(this).closest('form'),
+			game_name = $(this).closest('tr').find('td.game_name').text();
+		ModalConfirmation({
+				title: 'Unregister game',
+				text: 'Are you sure you want to unregister the game "' + game_name + '"?',
+				ok_text: 'Unregister',
+				ok: function(){
+					form.find('[name=unregister]').attr('type', 'hidden');
+					form.submit();
+				}
+		}).show();
+	});
+
 	
 	window.Interface = _I;
 });
