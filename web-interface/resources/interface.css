@@ -167,7 +167,7 @@ body {
 }
 
 table.game_list {
-    margin-top: 10px;
+    margin: 10px 4px;
     box-shadow: 1px 1px;
     border-collapse: collapse;
 }

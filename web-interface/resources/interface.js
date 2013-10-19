@@ -133,9 +133,9 @@ $(function(){
 	});
 	
 	/*
-	 * Change the change password form to be 'modal', hidden by default.
+	 * Change the change password form to be modal, hidden by default.
 	 */
-	change_password_form = ModalWindow('.admin_password_form');
+	change_password_form = ModalWindow('div.admin_password_form');
 	// Check for errors and display the password form again if they exist
 	if ($('.admin_flash_failure').length && window.location.href.indexOf('change_password') > 0) {
 		change_password_form.show(0);
@@ -153,6 +153,14 @@ $(function(){
 			e.preventDefault();
 			change_password_form.hide();
 		});
+	
+	/*
+	 * Make the manual registration form modal as well
+	 */
+	
+	manual_add_form = ModalWindow('div.manual_add_game');
+	$('<button>').text('Register a Dwarf Fortress manually')
+		.insertAfter('div.manual_add_game').click(manual_add_form.show);
 	
 	/*
 	 * Confirmation for logout

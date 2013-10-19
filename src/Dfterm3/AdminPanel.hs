@@ -330,9 +330,8 @@ listOfPublishedGames games = do
 
 manualAddGameHtml :: L.Markup
 manualAddGameHtml = do
-    L.h3 "Register a Dwarf Fortress manually:"
-    L.br
-    L.div ! A.class_ "manual_add_game" $
+    L.div ! A.class_ "manual_add_game" $ do
+        L.h3 "Register a Dwarf Fortress manually:"
         L.form ! A.action "manual_add_game" !
                  A.method "post" $ do
             L.label "Path to the executable file:"
