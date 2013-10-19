@@ -105,12 +105,12 @@ body {
 }
 
 .admin_flash_success {
-    color: #0c0;
+    color: #0b0;
 }
 
 .button {
     border: 0px solid black;
-    border-radius: 2;
+    border-radius: 2px;
     width: 0.75em;
     height: 0.75em;
     text-decoration: none;
@@ -118,11 +118,15 @@ body {
 }
 
 .button.close {
-    color: red;
+    color: #aaa;
+}
+
+.button.close.inline {
+    padding-left: 1em;
 }
 
 .button.close:hover {
-    background-color: #ddcccc;
+    color: #333;
 }
 
 #admin_submit_button {

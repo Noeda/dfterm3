@@ -124,12 +124,12 @@ $(function(){
 	 * Add a close/hide button to error messages
 	 * Clicking the button causes the message to fade out
 	 */
-	$('.admin_flash').each(function(i, message){
+	$('.admin_flash_success, .admin_flash_failure').each(function(i, message){
 		var hide_button = $('<a>').attr({href:'#'}).html('&times;')
 			.appendTo($(message).find('p')).click(function(e){
 				e.preventDefault();
 				$(message).fadeOut(500);
-			}).addClass('close button');
+			}).addClass('close button inline');
 	});
 	
 	/*
