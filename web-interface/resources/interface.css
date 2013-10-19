@@ -166,14 +166,32 @@ body {
     margin-left: 50px;
 }
 
-.admin_content li {
-    list-style: none;
-    font-family: monospace;
-    display: inline-block;
-    padding: 10px;
-    background: #d0d0d0;
-    height: 25px;
+table.game_list {
+    margin-top: 10px;
     box-shadow: 1px 1px;
+    border-collapse: collapse;
+}
+
+table.game_list tr {
+    list-style: none;
+    height: 25px;
+}
+
+table.game_list td, table.game_list th {
+    border: 1px solid #999;
+    padding: 5px;
+}
+
+table.game_list td {
+    background-color: #ddd;
+}
+
+table.game_list td.game_exepath {
+    font-family: monospace;
+}
+
+table.game_list th {
+    background-color: #eee;
 }
 
 .admin_password_form {

@@ -308,7 +308,11 @@ listOfPublishedGames [] = return ()
 listOfPublishedGames games = do
     L.div ! A.class_ "admin_title_registered" $
         L.h3 "Registered Dwarf Fortress games:"
-    L.table ! A.class_ "game_list" $
+    L.table ! A.class_ "game_list" $ do
+        L.tr $ do
+            L.th "Game name"
+            L.th "Executable path"
+            L.th ""
         forM_ games $ \df -> do
             L.tr $ do
                 L.td ! A.class_ "game_name" $
