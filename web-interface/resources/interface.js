@@ -8,7 +8,7 @@ $(function(){
 		var self = {};
 		opts = $.extend({
 			'overlay': true,
-			'animation_dur': 500,
+			'animation_dur': 250,
 			'hidden': true
 		}, opts);
 		self.animation_dur = opts.animation_dur;
