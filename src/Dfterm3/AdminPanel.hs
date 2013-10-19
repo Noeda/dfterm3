@@ -308,21 +308,21 @@ listOfPublishedGames [] = return ()
 listOfPublishedGames games = do
     L.div ! A.class_ "admin_title_registered" $
         L.h3 "Registered Dwarf Fortress games:"
-    L.br
-    L.ul $
+    L.table ! A.class_ "game_list" $
         forM_ games $ \df -> do
-            L.li $
-                L.form ! A.action "modify_game" !
-                         A.method "post" $ do
-                    L.input ! A.type_ "hidden" !
-                              A.name "key" !
-                              A.value (L.toValue (uniqueKey df))
-                    L.input ! A.type_ "submit" ! A.name "unregister" !
-                              A.value "Unregister"
+            L.tr $ do
+                L.td ! A.class_ "game_name" $
+                    L.toHtml $ df^.customName
+                L.td ! A.class_ "game_exepath" $
                     L.toHtml (uniqueKey df)
-                    L.span ! A.class_ "game_name" $
-                        L.toHtml $ df^.customName
-            L.br
+                L.td ! A.class_ "game_unregister" $ do
+                    L.form ! A.action "modify_game" !
+                             A.method "post" $ do
+                        L.input ! A.type_ "hidden" !
+                                  A.name "key" !
+                                  A.value (L.toValue (uniqueKey df))
+                        L.input ! A.type_ "submit" ! A.name "unregister" !
+                                  A.value "Unregister"
 
 manualAddGameHtml :: L.Markup
 manualAddGameHtml = do
