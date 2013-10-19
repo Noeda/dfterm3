@@ -136,14 +136,11 @@ $(function(){
 	 * Change the change password form to be 'modal', hidden by default.
 	 */
 	change_password_form = ModalWindow('.admin_password_form');
-	if ($('.admin_flash').length) {
+	// Check for errors and display the password form again if they exist
+	if ($('.admin_flash_failure').length && window.location.href.indexOf('change_password') > 0) {
 		change_password_form.show(0);
-		$('.admin_flash').each(function(i, e){
-			if ($(e).text().toLowerCase().indexOf('password set') >= 0) {
-				$(e).css({color: 'green'});
-				setTimeout(change_password_form.hide, 500);
-			}
-		});
+		// Move message above password form
+		$('.admin_flash_failure').insertAfter(change_password_form.node.find('h3'));
 	}
 	change_password_button = $('<button>').text('Change password')
 		.insertBefore($('form[action=logout] input'))
