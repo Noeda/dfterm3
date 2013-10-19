@@ -128,7 +128,7 @@ $(function(){
 		var hide_button = $('<a>').attr({href:'#'}).html('&times;')
 			.appendTo($(message).find('p')).click(function(e){
 				e.preventDefault();
-				$(message).fadeOut(500);
+				$(message).fadeOut(300);
 			}).addClass('close button inline');
 	});
 	
@@ -151,6 +151,8 @@ $(function(){
 	$('<button>').insertAfter(change_password_form.node.find('input[type=submit]'))
 		.text('Cancel').click(function(e){
 			e.preventDefault();
+			// clear form
+			change_password_form.node.find('input[type=password]').val('');
 			change_password_form.hide();
 		});
 	
@@ -162,25 +164,6 @@ $(function(){
 	$('<button>').text('Register a Dwarf Fortress manually')
 		.insertAfter('div.manual_add_game').click(manual_add_form.show);
 	
-	/*
-	 * Confirmation for logout
-	 */
-	$('form[action=logout] input[type=submit]').click(function(e){
-		e.preventDefault();
-		var form = $(this).closest('form');
-		if (!_I.logout_confirmation) {
-			_I.logout_confirmation = ModalConfirmation({
-				title: 'Log out',
-				text: 'Are you sure you want to log out now?',
-				ok_text: 'Log out',
-				ok: function(){
-					form.submit();
-				}
-			});
-		}
-		_I.logout_confirmation.show();
-	});
-
 	/*
 	 * Confirmation for unregistering games
 	 */
