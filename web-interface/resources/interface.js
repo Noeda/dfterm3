@@ -128,7 +128,7 @@ $(function(){
 	 */
 	$('.admin_flash_success, .admin_flash_failure').each(function(i, message){
 		message = $(message).addClass('alert alert-dismissable');
-		var close_button = $('<button>').html('&times;').addClass('close').click(function(e){
+		var close_button = $('<button>').attr({type:'button'}).html('&times;').addClass('close').click(function(e){
 			e.preventDefault();
 			$(message).fadeOut(300);
 		});
