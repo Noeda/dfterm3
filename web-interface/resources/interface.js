@@ -8,7 +8,7 @@ $(function(){
 		var self = {};
 		opts = $.extend({
 			'overlay': true,
-			'animation_dur': 500,
+			'animation_dur': 250,
 			'hidden': true
 		}, opts);
 		self.animation_dur = opts.animation_dur;
@@ -124,26 +124,23 @@ $(function(){
 	 * Add a close/hide button to error messages
 	 * Clicking the button causes the message to fade out
 	 */
-	$('.admin_flash').each(function(i, message){
+	$('.admin_flash_success, .admin_flash_failure').each(function(i, message){
 		var hide_button = $('<a>').attr({href:'#'}).html('&times;')
 			.appendTo($(message).find('p')).click(function(e){
 				e.preventDefault();
-				$(message).fadeOut(500);
-			}).addClass('close button');
+				$(message).fadeOut(300);
+			}).addClass('close button inline');
 	});
 	
 	/*
-	 * Change the change password form to be 'modal', hidden by default.
+	 * Change the change password form to be modal, hidden by default.
 	 */
-	change_password_form = ModalWindow('.admin_password_form');
-	if ($('.admin_flash').length) {
+	change_password_form = ModalWindow('div.admin_password_form');
+	// Check for errors and display the password form again if they exist
+	if ($('.admin_flash_failure').length && window.location.href.indexOf('change_password') > 0) {
 		change_password_form.show(0);
-		$('.admin_flash').each(function(i, e){
-			if ($(e).text().toLowerCase().indexOf('password set') >= 0) {
-				$(e).css({color: 'green'});
-				setTimeout(change_password_form.hide, 500);
-			}
-		});
+		// Move message above password form
+		$('.admin_flash_failure').insertAfter(change_password_form.node.find('h3'));
 	}
 	change_password_button = $('<button>').text('Change password')
 		.insertBefore($('form[action=logout] input'))
@@ -154,27 +151,37 @@ $(function(){
 	$('<button>').insertAfter(change_password_form.node.find('input[type=submit]'))
 		.text('Cancel').click(function(e){
 			e.preventDefault();
+			// clear form
+			change_password_form.node.find('input[type=password]').val('');
 			change_password_form.hide();
 		});
 	
 	/*
-	 * Confirmation for logout
+	 * Make the manual registration form modal as well
 	 */
-	$('form[action=logout] input[type=submit]').click(function(e){
+	
+	manual_add_form = ModalWindow('div.manual_add_game');
+	$('<button>').text('Register a Dwarf Fortress manually')
+		.insertAfter('div.manual_add_game').click(manual_add_form.show);
+	
+	/*
+	 * Confirmation for unregistering games
+	 */
+	$('form[action=modify_game] input[type=submit][name=unregister]').click(function(e){
 		e.preventDefault();
-		var form = $(this).closest('form');
-		if (!_I.logout_confirmation) {
-			_I.logout_confirmation = ModalConfirmation({
-				title: 'Log out',
-				text: 'Are you sure you want to log out now?',
-				ok_text: 'Log out',
+		var form = $(this).closest('form'),
+			game_name = $(this).closest('tr').find('td.game_name').text();
+		ModalConfirmation({
+				title: 'Unregister game',
+				text: 'Are you sure you want to unregister the game "' + game_name + '"?',
+				ok_text: 'Unregister',
 				ok: function(){
+					form.find('[name=unregister]').attr('type', 'hidden');
 					form.submit();
 				}
-			});
-		}
-		_I.logout_confirmation.show();
+		}).show();
 	});
+
 	
 	window.Interface = _I;
 });

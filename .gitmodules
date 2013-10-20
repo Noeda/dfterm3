@@ -1,0 +1,3 @@
+[submodule "web-interface/js/df-tileset"]
+	path = web-interface/js/df-tileset
+	url = https://github.com/lethosor/js-df-tileset
