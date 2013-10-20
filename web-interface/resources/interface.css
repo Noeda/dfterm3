@@ -97,7 +97,7 @@ body {
     top: 50%;
     margin-top: -75px;
     margin-left: -250px;
-    box-shadow: 5px 5px;
+    box-shadow: 5px 5px 5px;
 }
 
 .admin_flash_failure {

@@ -451,7 +451,7 @@ dfterm3_playing = function() {
             legend.textContent = "Choose a name for yourself";
             var label = document.createElement("label");
             label.setAttribute("for", "username");
-            label.textContent = "Name:";
+            label.textContent = "Name: ";
             var input = document.createElement("input");
             input.setAttribute("autofocus", "autofocus");
             input.setAttribute("name", "username");
@@ -463,11 +463,9 @@ dfterm3_playing = function() {
 
             login_part.appendChild(form);
             form.appendChild(legend);
-            form.appendChild(document.createElement("hr"));
             form.appendChild(label);
             form.appendChild(input);
             form.appendChild(document.createElement("br"));
-            form.appendChild(document.createElement("hr"));
             form.appendChild(submit);
 
             form.addEventListener( "submit"
