@@ -238,9 +238,15 @@ adminPanelContents ps flashmsg = do
                 L.meta ! A.charset "utf-8"
                 L.link ! A.href "resources/interface.css" ! A.rel "stylesheet" !
                          A.type_ "text/css" ! A.title "Interface style"
+                L.link ! A.href "resources/bootstrap/bootstrap.min.css" ! A.rel "stylesheet" !
+                         A.type_ "text/css" ! A.title "Interface style"
+                L.link ! A.href "resources/bootstrap/bootstrap-theme.min.css" ! A.rel "stylesheet" !
+                         A.type_ "text/css" ! A.title "Interface style"
                 L.script ! A.src "http://code.jquery.com/jquery-latest.js" !
                            A.type_ "text/javascript" $ ""
                 L.script ! A.src "resources/interface.js" !
+                           A.type_ "text/javascript" $ ""
+                L.script ! A.src "resources/bootstrap/bootstrap.min.js" !
                            A.type_ "text/javascript" $ ""
             L.body rest
 
