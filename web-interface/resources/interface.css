@@ -105,12 +105,12 @@ body {
 }
 
 .admin_flash_success {
-    color: #0c0;
+    color: #0b0;
 }
 
 .button {
     border: 0px solid black;
-    border-radius: 2;
+    border-radius: 2px;
     width: 0.75em;
     height: 0.75em;
     text-decoration: none;
@@ -118,11 +118,15 @@ body {
 }
 
 .button.close {
-    color: red;
+    color: #aaa;
+}
+
+.button.close.inline {
+    padding-left: 1em;
 }
 
 .button.close:hover {
-    background-color: #ddcccc;
+    color: #333;
 }
 
 #admin_submit_button {
@@ -162,14 +166,32 @@ body {
     margin-left: 50px;
 }
 
-.admin_content li {
-    list-style: none;
-    font-family: monospace;
-    display: inline-block;
-    padding: 10px;
-    background: #d0d0d0;
-    height: 25px;
+table.game_list {
+    margin: 10px 4px;
     box-shadow: 1px 1px;
+    border-collapse: collapse;
+}
+
+table.game_list tr {
+    list-style: none;
+    height: 25px;
+}
+
+table.game_list td, table.game_list th {
+    border: 1px solid #999;
+    padding: 5px;
+}
+
+table.game_list td {
+    background-color: #ddd;
+}
+
+table.game_list td.game_exepath {
+    font-family: monospace;
+}
+
+table.game_list th {
+    background-color: #eee;
 }
 
 .admin_password_form {
