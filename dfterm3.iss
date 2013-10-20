@@ -1,10 +1,10 @@
 [Setup]
 AppName=Dfterm3
-AppVersion=0.3
+AppVersion=0.4
 DefaultDirName={pf}\Dfterm3
 DefaultGroupName=Dfterm3
 LicenseFile=LICENSE
-VersionInfoVersion=0.3
+VersionInfoVersion=0.4
 
 [Icons]
 Name: "{group}\Dfterm3 server"; Filename: "{app}\dfterm3.exe"; WorkingDir: "{app}"

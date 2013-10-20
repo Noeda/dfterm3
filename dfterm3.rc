@@ -10,11 +10,11 @@ BEGIN
     BLOCK "040904E4"
     BEGIN
       VALUE "FileDescription", "Dfterm3 server"
-      VALUE "FileVersion", "0.3"
+      VALUE "FileVersion", "0.4"
       VALUE "LegalCopyright", "Mikko Juola (c) 2013"
       VALUE "OriginalFilename", "dfterm3.exe"
       VALUE "ProductName", "Dfterm3"
-      VALUE "ProductVersion", "0.3"
+      VALUE "ProductVersion", "0.4"
     END
   END
 

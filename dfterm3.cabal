@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                dfterm3
-version:             0.3
+version:             0.4
 synopsis:            Dwarf Fortress remote playing software
 
 description:         This software lets you play Dwarf Fortress through a

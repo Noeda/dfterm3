@@ -179,7 +179,7 @@ run options
                               then Syslog
                               else Simple
 
-        logInfo "Dfterm3 0.3 starting up."
+        logInfo "Dfterm3 0.4 starting up."
 
         -- Make sure we get to use all the cores. The unfortunate side effect
         -- is that the rtsopt -N is ignored.
