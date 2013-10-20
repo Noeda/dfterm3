@@ -98,8 +98,10 @@ $(function(){
 		
 		self.node.append($('<p>').css({'font-weight': 'bold', 'margin-top':0}).text(opts.title))
 			.append($('<p>').text(opts.text))
-			.append($('<button>').text(opts.ok_text).click(self.ok_handler))
-			.append($('<button>').text(opts.cancel_text).click(self.cancel_handler));
+			.append($('<p>')
+				.append($('<button>').addClass('btn btn-primary').text(opts.ok_text).click(self.ok_handler))
+				.append($('<button>').addClass('btn btn-default').text(opts.cancel_text).click(self.cancel_handler))
+			);
 		self.node.find('button').css({
 			'float': 'right',
 		});
@@ -125,12 +127,19 @@ $(function(){
 	 * Clicking the button causes the message to fade out
 	 */
 	$('.admin_flash_success, .admin_flash_failure').each(function(i, message){
-		var hide_button = $('<a>').attr({href:'#'}).html('&times;')
-			.appendTo($(message).find('p')).click(function(e){
-				e.preventDefault();
-				$(message).fadeOut(300);
-			}).addClass('close button inline');
+		message = $(message).addClass('alert alert-dismissable');
+		var close_button = $('<button>').attr({type:'button'}).html('&times;').addClass('close').click(function(e){
+			e.preventDefault();
+			$(message).fadeOut(300);
+		});
+		if (message.find('p').length)
+			close_button.appendTo(message.find('p:nth(0)'));
+		else
+			close_button.appendTo(message);
 	});
+	
+	$('.admin_flash_failure').addClass('alert-danger');
+	$('.admin_flash_success').addClass('alert-success');
 	
 	/*
 	 * Change the change password form to be modal, hidden by default.
@@ -142,26 +151,52 @@ $(function(){
 		// Move message above password form
 		$('.admin_flash_failure').insertAfter(change_password_form.node.find('h3'));
 	}
-	change_password_button = $('<button>').text('Change password')
-		.insertBefore($('form[action=logout] input'))
-		.click(function(e){
-			e.preventDefault();
-			change_password_form.show();
-		});
 	$('<button>').insertAfter(change_password_form.node.find('input[type=submit]'))
-		.text('Cancel').click(function(e){
+		.text('Cancel').addClass('btn btn-default').click(function(e){
 			e.preventDefault();
 			// clear form
 			change_password_form.node.find('input[type=password]').val('');
 			change_password_form.hide();
 		});
+	change_password_form.node.find('input[type=submit]').addClass('btn btn-primary');
 	
 	/*
-	 * Make the manual registration form modal as well
+	 * Move buttons to navbar
+	 */
+	
+	var logout_form = $('form[action=logout]').hide();
+	$('<li>').append($('<a href="#">Log out</a>')).appendTo('#admin-nav').click(function(e){
+		e.preventDefault();
+		logout_form.submit();
+	});
+	
+	// Dropdown
+	$('#admin-nav').prepend($('<li class="dropdown">' +
+		'<a href="#" class="dropdown-toggle" data-toggle="dropdown">Settings <b class="caret"></b></a>' +
+		'<ul class="dropdown-menu"></ul></li>'
+	));
+	
+	$('#admin-nav ul.dropdown-menu').append('<li><a href="#">Change password</a></li>').click(function(e){
+		e.preventDefault();
+		change_password_form.show();
+	});
+	
+	/*
+	 * Button classes
+	 */
+	
+	$('form[action=modify_game] input[type=submit][name=unregister]')
+		.addClass('btn btn-danger');
+	
+	// Change all generic submit buttons to .btn-primary
+	$('input[type=submit]').not('[class*=btn]').addClass('btn btn-primary');
+	
+	/*
+	 * Make the manual registration form modal
 	 */
 	
 	manual_add_form = ModalWindow('div.manual_add_game');
-	$('<button>').text('Register a Dwarf Fortress manually')
+	$('<button>').text('Register a Dwarf Fortress manually').addClass('btn btn-default')
 		.insertAfter('div.manual_add_game').click(manual_add_form.show);
 	
 	/*
@@ -181,7 +216,7 @@ $(function(){
 				}
 		}).show();
 	});
-
+	
 	
 	window.Interface = _I;
 });
