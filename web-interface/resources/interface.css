@@ -140,7 +140,8 @@ body {
     background: #ddd;
     border: 1px solid;
     padding: 20px;
-    box-shadow: 5px 5px;
+    box-shadow: 5px 5px 5px;
+    margin: 5em 0.5em auto;
 }
 
 .admin_title_unregistered {

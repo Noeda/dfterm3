@@ -248,7 +248,12 @@ adminPanelContents ps flashmsg = do
                            A.type_ "text/javascript" $ ""
                 L.script ! A.src "resources/bootstrap/bootstrap.min.js" !
                            A.type_ "text/javascript" $ ""
-            L.body rest
+            L.body $ do
+                L.div ! A.class_ "navbar navbar-inverse navbar-fixed-top" $ do
+                    L.div ! A.class_ "navbar-brand" $ "Admin panel"
+                    L.ul ! A.class_ "nav navbar-nav navbar-right" !
+                           A.id "admin-nav" $ ""
+                rest
 
 logoutHtml :: L.Markup
 logoutHtml =

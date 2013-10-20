@@ -142,12 +142,6 @@ $(function(){
 		// Move message above password form
 		$('.admin_flash_failure').insertAfter(change_password_form.node.find('h3'));
 	}
-	change_password_button = $('<button>').text('Change password')
-		.insertBefore($('form[action=logout] input'))
-		.click(function(e){
-			e.preventDefault();
-			change_password_form.show();
-		});
 	$('<button>').insertAfter(change_password_form.node.find('input[type=submit]'))
 		.text('Cancel').click(function(e){
 			e.preventDefault();
@@ -157,7 +151,28 @@ $(function(){
 		});
 	
 	/*
-	 * Make the manual registration form modal as well
+	 * Move buttons to navbar
+	 */
+	
+	var logout_form = $('form[action=logout]').hide();
+	$('<li>').append($('<a href="#">Log out</a>')).appendTo('#admin-nav').click(function(e){
+		e.preventDefault();
+		logout_form.submit();
+	});
+	
+	// Dropdown
+	$('#admin-nav').prepend($('<li class="dropdown">' +
+		'<a href="#" class="dropdown-toggle" data-toggle="dropdown">Settings <b class="caret"></b></a>' +
+		'<ul class="dropdown-menu"></ul></li>'
+	));
+	
+	$('#admin-nav ul.dropdown-menu').append('<li><a href="#">Change password</a></li>').click(function(e){
+		e.preventDefault();
+		change_password_form.show();
+	});
+	
+	/*
+	 * Make the manual registration form modal
 	 */
 	
 	manual_add_form = ModalWindow('div.manual_add_game');
