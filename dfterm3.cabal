@@ -33,13 +33,13 @@ library
                        Dfterm3.AdminPanel
                        Dfterm3.Admin
                        Dfterm3.Playing.WebInterface
+                       Dfterm3.Util
   other-modules:       Dfterm3.GameSubscription.Internal.Transactions
                        Dfterm3.GameSubscription.Internal.Types
                        Dfterm3.GameSubscription.Internal.SubscriptionIO
                        Dfterm3.Dfterm3State.Internal.Transactions
                        Dfterm3.Dfterm3State.Internal.Types
                        Dfterm3.Game.DwarfFortress.Internal.Running
-                       Dfterm3.Util
                        Dfterm3.User
                        Dfterm3.Admin.Internal.Types
                        Dfterm3.Admin.Internal.Transactions

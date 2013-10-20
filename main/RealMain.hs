@@ -8,6 +8,7 @@ import Dfterm3.Game.DwarfFortress
 import Dfterm3.Logging
 import Dfterm3.Dfterm3State
 import Dfterm3.Playing.WebInterface
+import Dfterm3.Util
 
 import Dfterm3.AdminPanel
 import qualified Dfterm3.Admin as A
@@ -104,7 +105,7 @@ isWebsocketHTTPOption (WebsocketHTTP _) = True
 isWebsocketHTTPOption _ = False
 
 main :: IO ()
-main = do
+main = exceptionTaggedIO "main" $ do
     args <- getArgs
     withOpenSSL $ do
 #ifndef WINDOWS
@@ -198,9 +199,9 @@ run options
         monitorDwarfFortresses
 
         forM_ admin_panels $ \(AdminPanel port) ->
-                                forkIO $ runAdminPanel
-                                             port
-                                             storage
+                                forkExceptionTaggedIO "admin-panel-http" $
+                                    runAdminPanel port
+                                                  storage
 
         threadDelay 500000
 
@@ -226,12 +227,12 @@ run options
 
 
         forM_ websocket_ports $ \(Websocket port) ->
-                                   forkIO $ runWebSocket
-                                                port
-                                                storage
+                                   forkExceptionTaggedIO "playing-websocket" $
+                                       runWebSocket port storage
 
         forM_ websocket_http_ports $ \(WebsocketHTTP port) ->
-                                        forkIO $ runWebsocketHTTP
+                                        forkExceptionTaggedIO "playing-http" $
+                                            runWebsocketHTTP
                                                      port
                                                      (fmap unwrap_websocket
                                                            websocket_ports)

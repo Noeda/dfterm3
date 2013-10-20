@@ -11,6 +11,8 @@ module Dfterm3.Util
     , FinRef()
     , safeFromIntegral
     , forkDyingIO
+    , forkExceptionTaggedIO
+    , exceptionTaggedIO
     , whenJust
     , whenJustM )
     where
@@ -21,6 +23,7 @@ import Control.Monad ( void, unless )
 import Data.IORef
 import Control.Concurrent
 import Control.Exception
+import System.IO
 
 data FinRef = FinRef (IORef ()) (IORef Bool) (IO ())
               deriving ( Typeable )
@@ -72,6 +75,21 @@ safeFromIntegral from
 touchFinRef :: FinRef -> IO ()
 touchFinRef (FinRef !_ !_ !_) = return ()
 {-# NOINLINE touchFinRef #-}
+
+-- | The same as `forkIO` but if an uncaught exception is thrown, it tags it
+-- with the given string.
+forkExceptionTaggedIO :: String -> IO () -> IO ThreadId
+forkExceptionTaggedIO tag action =
+    forkIO $ exceptionTaggedIO tag action
+
+-- | Similar to `forkExceptionTaggedIO` but does not fork a thread.
+--
+-- This catches all exceptions so you probably only want to use it at top-level
+-- of a thread where those exceptions would not be caught anyway.
+exceptionTaggedIO :: String -> IO () -> IO ()
+exceptionTaggedIO tag action =
+    catch action $ \e ->
+        hPutStrLn stderr $ "[" ++ tag ++ "] " ++ show (e :: SomeException)
 
 -- | Launches a thread that will be killed when the given action finishes.
 forkDyingIO :: IO ()        -- ^ Computation to run in thread.

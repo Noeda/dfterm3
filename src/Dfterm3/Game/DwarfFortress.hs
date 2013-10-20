@@ -188,8 +188,9 @@ ports = [48000..48100]
 portChecker :: Word16 -> IO ()
 portChecker port = mask $ \restore -> forever $ do
     is_done <- newEmptyMVar
-    tid <- forkIO $ finally (restore $ portChecker' port) $
-                        putMVar is_done ()
+    tid <- forkExceptionTaggedIO ("df-connection-" ++ show port) $
+        finally (restore $ portChecker' port) $
+            putMVar is_done ()
     finally (restore $ takeMVar is_done) $
         killThread tid
     -- Have somewhat random delay.
