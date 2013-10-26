@@ -250,7 +250,8 @@ adminPanelContents ps flashmsg = do
                            A.type_ "text/javascript" $ ""
             L.body $ do
                 L.div ! A.class_ "navbar navbar-inverse navbar-fixed-top" $ do
-                    L.div ! A.class_ "navbar-brand" $ "Admin panel"
+                    L.a ! A.class_ "navbar-brand"  ! A.href "admin" $
+                          "Admin panel"
                     L.ul ! A.class_ "nav navbar-nav navbar-right" !
                            A.id "admin-nav" $ ""
                 rest
