@@ -41,6 +41,8 @@ Next, get yourself the Dfterm3 source code:
 
     $ git clone https://github.com/Noeda/dfterm3.git
     $ cd dfterm3
+    $ git submodule init
+    $ git submodule update
 
 Now, install all the dependencies:
 
