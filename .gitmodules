@@ -1,3 +1,6 @@
 [submodule "web-interface/js/df-tileset"]
 	path = web-interface/js/df-tileset
 	url = https://github.com/lethosor/js-df-tileset
+[submodule "web-interface/js/growl"]
+	path = web-interface/js/growl
+	url = https://github.com/ifightcrime/bootstrap-growl
