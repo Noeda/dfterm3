@@ -4,14 +4,21 @@
 module Dfterm3.Dfterm3State.Internal.Transactions
     ( TryPublishGame(..)
     , TryRemoveGame(..)
-    , GetPublishedGames(..) )
+    , GetPublishedGames(..)
+    , AreGuestsEnabled(..)
+    , AreRegistrationsEnabled(..)
+    , IsValidLogin(..) )
     where
 
 import Dfterm3.GameSubscription.Internal.Transactions
 import Dfterm3.Dfterm3State.Internal.Types
+import Dfterm3.UserAccounting.Internal.Transactions
 import Data.Acid
 
 makeAcidic ''PersistentStorageState [ 'tryPublishGame
                                     , 'tryRemoveGame
-                                    , 'getPublishedGames ]
+                                    , 'getPublishedGames
+                                    , 'areGuestsEnabled
+                                    , 'areRegistrationsEnabled
+                                    , 'isValidLogin ]
 

@@ -32,6 +32,11 @@ library
                        Dfterm3.Game.DwarfFortress
                        Dfterm3.Util
                        Dfterm3.Server.WebSocket
+                       Dfterm3.Server.Logic
+                       Dfterm3.Server.Types
+                       Dfterm3.UserAccounting
+                       Dfterm3.UserAccounting.Internal.Types
+                       Dfterm3.UserAccounting.Internal.Transactions
                        Dfterm3.GameSubscription.Internal.Transactions
                        Dfterm3.GameSubscription.Internal.Types
                        Dfterm3.GameSubscription.Internal.SubscriptionIO
@@ -59,6 +64,7 @@ library
                       ,utf8-string ==0.3.*
                       ,type-level ==0.2.*
                       ,protobuf ==0.1.*
+                      ,pipes ==4.1.*
                       ,process ==1.1.*
                       ,time ==1.4.*
                       ,hslogger ==1.2.*
@@ -69,6 +75,7 @@ library
                       ,enumerator ==0.4.*
                       ,websockets ==0.8.*
                       ,vector ==0.10.*
+                      ,semigroups ==0.12.*
 
   c-sources:     src/c/waitpid.c
 

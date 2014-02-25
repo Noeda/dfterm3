@@ -8,6 +8,7 @@ module Dfterm3.Dfterm3State.Internal.Types
       Storage(..)
     , PersistentStorageState(..)
     , VolatileStorageState(..)
+    , userAccounting
     , gameSubscriptions
     , gameSubscriptionsVolatile
     , readPersistentStorage
@@ -23,13 +24,16 @@ import Data.Acid
 import Data.IORef
 import Data.SafeCopy
 import Dfterm3.GameSubscription.Internal.Types
+import Dfterm3.UserAccounting.Internal.Types
 
+import qualified Data.ByteString as B
 import qualified Data.Set as S
-import qualified Data.Text as T
+import qualified Data.Map.Strict as M
 
 data PersistentStorageState =
     PersistentStorageState
-    { _gameSubscriptions :: SubscriptionStatePersistent }
+    { _gameSubscriptions  :: SubscriptionStatePersistent
+    , _userAccounting     :: UserAccountingPersistent }
     deriving ( Typeable )
 
 data VolatileStorageState =

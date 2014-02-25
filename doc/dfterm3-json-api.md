@@ -73,4 +73,19 @@ IDENTITY shall take the form of one of the following objects.
 
 These two forms are for users with accounts and users without accounts.
 
+The server responds to a login message with the following message.
+
+    server -> client
+    {
+        "message":"login_acknowledgement"
+       ,"status":STATUS
+       ,"notice":NOTICE
+    }
+
+Where STATUS is either the boolean true or false, for successful and
+unsuccessful logins respectively. NOTICE is a string meant for humans to read
+and should be told to the user logging in. This is used to tell why a login
+might have been unsuccessful. In case of successful login, it can contain any
+server notice that should be seen at login such as a MOTD.
+
 
