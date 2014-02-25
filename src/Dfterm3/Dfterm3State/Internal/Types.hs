@@ -10,7 +10,6 @@ module Dfterm3.Dfterm3State.Internal.Types
     , VolatileStorageState(..)
     , gameSubscriptions
     , gameSubscriptionsVolatile
-    , loggedInUsers
     , readPersistentStorage
     , readVolatileStorage
     , modifyVolatileStorage
@@ -35,8 +34,7 @@ data PersistentStorageState =
 
 data VolatileStorageState =
     VolatileStorageState
-    { _gameSubscriptionsVolatile :: SubscriptionStateVolatile
-    , _loggedInUsers :: S.Set T.Text }
+    { _gameSubscriptionsVolatile :: SubscriptionStateVolatile }
     deriving ( Typeable )
 makeLenses ''PersistentStorageState
 makeLenses ''VolatileStorageState

@@ -25,8 +25,7 @@ openStorage directory = do
     lock <- newMVar ()
     ref <- newIORef VolatileStorageState
         { _gameSubscriptionsVolatile =
-          SubscriptionStateVolatile M.empty M.empty lock
-        , _loggedInUsers = S.empty }
+          SubscriptionStateVolatile M.empty M.empty lock }
 
     createDirectoryIfMissing True directory
     st <- openLocalStateFrom directory
