@@ -1,7 +1,7 @@
 -- | Internal module to Dfterm3.Dfterm3State
 --
 
-{-# LANGUAGE TemplateHaskell, DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell, DeriveDataTypeable, TypeFamilies #-}
 
 module Dfterm3.Dfterm3State.Internal.Types
     (
@@ -10,7 +10,6 @@ module Dfterm3.Dfterm3State.Internal.Types
     , VolatileStorageState(..)
     , gameSubscriptions
     , gameSubscriptionsVolatile
-    , admin
     , loggedInUsers
     , readPersistentStorage
     , readVolatileStorage
@@ -25,15 +24,13 @@ import Data.Acid
 import Data.IORef
 import Data.SafeCopy
 import Dfterm3.GameSubscription.Internal.Types
-import Dfterm3.Admin.Internal.Types
 
 import qualified Data.Set as S
 import qualified Data.Text as T
 
 data PersistentStorageState =
     PersistentStorageState
-    { _gameSubscriptions :: SubscriptionStatePersistent
-    , _admin :: AdminStatePersistent }
+    { _gameSubscriptions :: SubscriptionStatePersistent }
     deriving ( Typeable )
 
 data VolatileStorageState =
@@ -43,7 +40,7 @@ data VolatileStorageState =
     deriving ( Typeable )
 makeLenses ''PersistentStorageState
 makeLenses ''VolatileStorageState
-deriveSafeCopy 0 'base ''PersistentStorageState
+deriveSafeCopy 1 'base ''PersistentStorageState
 
 -- | Handle to Dfterm3 state.
 newtype Storage =
@@ -67,4 +64,8 @@ modifyVolatileStorage :: Storage
                       -> IO b
 modifyVolatileStorage (Storage (_, ref)) =
     atomicModifyIORef' ref
+
+--- *** ---
+-- MIGRATIONS ---
+--  *** ---
 

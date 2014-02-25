@@ -11,7 +11,6 @@ module Dfterm3.Dfterm3State
 
 import Dfterm3.Dfterm3State.Internal.Transactions()
 import Dfterm3.GameSubscription.Internal.Types
-import Dfterm3.Admin.Internal.Types
 import Dfterm3.Dfterm3State.Internal.Types
 import System.Directory
 import Control.Concurrent.MVar
@@ -32,8 +31,7 @@ openStorage directory = do
     createDirectoryIfMissing True directory
     st <- openLocalStateFrom directory
           PersistentStorageState
-          { _gameSubscriptions = initialSubscriptionStatePersistent
-          , _admin = initialAdminStatePersistent }
+          { _gameSubscriptions = initialSubscriptionStatePersistent }
 
     return $ Storage ( st, ref )
 
