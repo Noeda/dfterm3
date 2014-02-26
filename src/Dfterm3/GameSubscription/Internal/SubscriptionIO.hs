@@ -12,6 +12,7 @@ import Dfterm3.Dfterm3State.Internal.Types
 import Data.IORef
 import Data.Acid
 import Data.Typeable ( Typeable )
+import Control.Exception
 import Control.Lens
 import Control.Concurrent.MVar
 import Control.Monad.State
@@ -29,7 +30,7 @@ newtype SubscriptionIO a =
 -- These actions can be issued concurrently; however internally there is a lock
 -- that prevents actions from running at the same time.
 runSubscriptionIO :: Storage -> SubscriptionIO a -> IO a
-runSubscriptionIO (Storage (pss, ref)) (SubscriptionIO action) = do
+runSubscriptionIO (Storage (pss, ref)) (SubscriptionIO action) = mask_ $ do
     insides' <- readIORef ref
     let insides = _gameSubscriptionsVolatile insides'
     withMVar (_lock insides) $ \_ -> do

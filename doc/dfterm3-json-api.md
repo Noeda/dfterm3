@@ -88,4 +88,68 @@ and should be told to the user logging in. This is used to tell why a login
 might have been unsuccessful. In case of successful login, it can contain any
 server notice that should be seen at login such as a MOTD.
 
+Only after a successful login has been completed, other kinds of messages can
+be exchanged.
+
+Game sessions
+-------------
+
+Client requests a list of active games by sending this message:
+
+    client -> server
+    {
+        "message":"query_all_games"
+    }
+
+Server responds with this message:
+
+    server -> client
+    {
+        "message":"all_games"
+       ,"games":ARRAY
+    }
+
+ARRAY is an array of games. Each item in the array has the following form:
+
+    {
+        "game_name":GAME-NAME
+        "instance_name":INSTANCE-NAME
+        "key":KEY
+    }
+
+GAME-NAME is the general name of what game this is. As in, this is "Dwarf
+Fortress" for all instances that have Dwarf Fortress running in them.
+
+INSTANCE-NAME is the name of this specific game. If GAME-NAME is "Dwarf
+Fortress" then INSTANCE-NAME could be "0.31.11 Running ABC Modpack" or
+something like that.
+
+KEY is a string that uniquely identifies this game.
+
+The client can then join a game by sending this message:
+
+    client -> server
+    {
+        "message":"join_game"
+       ,"key":KEY
+    }
+
+Server acknowledges the join with this message.
+
+    server -> client
+    {
+        "message":"join_acknowledgement"
+        "status":STATUS
+        "notice":NOTICE
+    }
+
+STATUS is a boolean true if joining was successful. NOTICE contains a string
+explaining why joining failed, if it failed. It can also be empty.
+
+Available games can change between the time server hands a list of games and
+client asks to join a game. The server shall keep state in such a way that when
+client asks to join a game, the KEY refers in the same set of keys as was
+reported by the server in last listing of games. In case the game is no longer
+valid, then trying to join the game will properly report an error.
+
 

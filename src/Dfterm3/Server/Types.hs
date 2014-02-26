@@ -3,12 +3,15 @@
 module Dfterm3.Server.Types
     ( ServerToClient(..)
     , ClientToServer(..)
+    , GameEntry(..)
     , Identity(..)
     , handshake )
     where
 
 import Data.Aeson
 import qualified Data.Text as T
+
+import Dfterm3.Game.DwarfFortress
 
 import Data.Typeable
 import Control.Monad
@@ -22,17 +25,36 @@ data ServerToClient =
   | LoginAck
     { status :: !Bool
     , notice :: !T.Text }
+  | JoinAck
+    { statusJoinAck :: !Bool
+    , noticeJoinAck :: !T.Text }
+  | AllGames
+    { games  :: [GameEntry] }
     deriving ( Eq, Ord, Show, Read, Typeable )
 
 data ClientToServer =
     Login
     { identity :: !Identity
     , password :: !(Maybe T.Text) }
+  | QueryAllGames
+  | JoinGame
+    { keyJoinGame :: T.Text }
     deriving ( Eq, Ord, Show, Read, Typeable )
 
 data Identity =
-      User !T.Text
-    | Guest
+    User !T.Text
+  | Guest
+    deriving ( Eq, Ord, Show, Read, Typeable )
+
+data GameEntry =
+    GameEntry
+    { gameName :: T.Text
+    , instanceName :: T.Text
+    , gameItself :: DwarfFortressPersistent   -- TODO: if we ever generalize to
+                                              -- other games, we have to
+                                              -- somehow get rid of DF
+                                              -- specificyness here
+    , key :: T.Text }
     deriving ( Eq, Ord, Show, Read, Typeable )
 
 instance ToJSON ServerToClient where
@@ -46,6 +68,19 @@ instance ToJSON ServerToClient where
         object [ "message" .= ("login_acknowledgement" :: T.Text)
                , "status"  .= status
                , "notice"  .= notice ]
+    toJSON (JoinAck {..}) =
+        object [ "message" .= ("join_acknowledgement" :: T.Text)
+               , "status"  .= statusJoinAck
+               , "notice"  .= noticeJoinAck ]
+    toJSON (AllGames {..}) =
+        object [ "message" .= ("all_games" :: T.Text)
+               , "games"   .= games ]
+
+instance ToJSON GameEntry where
+    toJSON (GameEntry {..}) =
+        object [ "game_name" .= gameName
+               , "instance_name" .= instanceName
+               , "key" .= key ]
 
 instance FromJSON Identity where
     parseJSON (Object v) = do
@@ -57,14 +92,28 @@ instance FromJSON Identity where
 instance FromJSON ClientToServer where
     parseJSON (Object v) = do
         msg <- v .: "message"
-        guard (msg == ("login" :: T.Text))
-        iden <- v .: "identity"
-        pass <-
-            msum [ Just <$> (v .: "password")
-                 , return Nothing ]
+        msum [ loginMsg msg
+             , queryAllGamesMsg msg
+             , joinGameMsg msg ]
+      where
+        loginMsg msg = do
+            guard (msg == ("login" :: T.Text))
+            iden <- v .: "identity"
+            pass <-
+                msum [ Just <$> (v .: "password")
+                     , return Nothing ]
 
-        return (Login { identity = iden
-                      , password = pass })
+            return (Login { identity = iden
+                          , password = pass })
+
+        queryAllGamesMsg msg = do
+            guard (msg == ("query_all_games" :: T.Text))
+            return QueryAllGames
+
+        joinGameMsg msg = do
+            guard (msg == ("join_game" :: T.Text))
+            key <- v .: "key"
+            return JoinGame { keyJoinGame = key }
 
     parseJSON _ = mzero
 
