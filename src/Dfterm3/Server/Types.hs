@@ -27,9 +27,14 @@ data ServerToClient =
     , notice :: !T.Text }
   | JoinAck
     { statusJoinAck :: !Bool
+    , instanceKeyJoinAck :: !T.Text
     , noticeJoinAck :: !T.Text }
   | AllGames
     { games  :: [GameEntry] }
+  | ChatToGame
+    { instanceKeyCTG :: !T.Text
+    , speaker        :: !T.Text
+    , content        :: !T.Text }
     deriving ( Eq, Ord, Show, Read, Typeable )
 
 data ClientToServer =
@@ -38,7 +43,10 @@ data ClientToServer =
     , password :: !(Maybe T.Text) }
   | QueryAllGames
   | JoinGame
-    { keyJoinGame :: T.Text }
+    { keyJoinGame :: !T.Text }
+  | ChatToGameClient
+    { instanceKeyCTGClient :: !T.Text
+    , contentClient        :: !T.Text }
     deriving ( Eq, Ord, Show, Read, Typeable )
 
 data Identity =
@@ -75,6 +83,11 @@ instance ToJSON ServerToClient where
     toJSON (AllGames {..}) =
         object [ "message" .= ("all_games" :: T.Text)
                , "games"   .= games ]
+    toJSON (ChatToGame {..}) =
+        object [ "message" .= ("chat_to_game" :: T.Text)
+               , "instance_key" .= instanceKeyCTG
+               , "speaker" .= speaker
+               , "content" .= content ]
 
 instance ToJSON GameEntry where
     toJSON (GameEntry {..}) =
@@ -94,7 +107,8 @@ instance FromJSON ClientToServer where
         msg <- v .: "message"
         msum [ loginMsg msg
              , queryAllGamesMsg msg
-             , joinGameMsg msg ]
+             , joinGameMsg msg
+             , chatGameMsg msg ]
       where
         loginMsg msg = do
             guard (msg == ("login" :: T.Text))
@@ -114,6 +128,14 @@ instance FromJSON ClientToServer where
             guard (msg == ("join_game" :: T.Text))
             key <- v .: "key"
             return JoinGame { keyJoinGame = key }
+
+        chatGameMsg msg = do
+            guard (msg == ("chat_to_game" :: T.Text))
+            key <- v .: "instance_key"
+            content <- v .: "content"
+            return ChatToGameClient
+                   { instanceKeyCTGClient = key
+                   , contentClient = content }
 
     parseJSON _ = mzero
 

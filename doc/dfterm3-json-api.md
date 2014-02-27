@@ -141,15 +141,144 @@ Server acknowledges the join with this message.
         "message":"join_acknowledgement"
         "status":STATUS
         "notice":NOTICE
+        "instance_key":KEY         optional
     }
 
 STATUS is a boolean true if joining was successful. NOTICE contains a string
 explaining why joining failed, if it failed. It can also be empty.
+
+KEY is only present if joining succeeded. It contains a unique key that can be
+later used to refer to this game instance. It is _not_, in general, the same
+key as in game listing; in current implementation it is very likely to be
+different. The KEY is always a string.
 
 Available games can change between the time server hands a list of games and
 client asks to join a game. The server shall keep state in such a way that when
 client asks to join a game, the KEY refers in the same set of keys as was
 reported by the server in last listing of games. In case the game is no longer
 valid, then trying to join the game will properly report an error.
+
+Game display
+------------
+
+Once a game has been joined, the game may send "changesets" that happened in
+the game. These changesets can be used to reconstruct a view of the game.
+
+The changeset format is tied to the type of the game. At the moment we only
+deal with Dwarf Fortress and that is why this part of the protocol is Dwarf
+Fortress specific.
+
+The format of a changeset is as follows:
+
+    server -> client
+    {
+        "message":"game_changeset"
+        "instance_key":KEY
+        "changeset":CHANGESET
+    }
+
+KEY is the instance key.
+
+CHANGESET is an object of following form:
+
+    {
+        "last_player":PLAYER             optional
+       ,"width":WIDTH
+       ,"height":HEIGHT
+       ,"cursor":CURSOR                  optional
+       ,"changes_zlib":CHANGES_ZLIB
+    }
+
+PLAYER is a string that tells the name of the last player who touched the input
+of this game. It may not be present.
+
+WIDTH and HEIGHT are integers that tell the size of the Dwarf Fortress screen
+at the moment, in number of characters. They may change during a game.
+
+CURSOR is an object:
+
+    {
+        "x":X
+       ,"y":Y
+    }
+
+Where X and Y tell where on the screen the cursor is right now. If there is no
+CURSOR, then it means cursor is not visible.
+
+CHANGES_ZLIB is complex. It is base91[1] encoded binary. The binary has been
+compressed with zlib. After uncompression and decoding, the binary has the
+following format:
+
+    X Y C U ...
+
+Where X and Y are 16-bit unsigned integers in big endian that tell which
+location on the screen has changed. C is 8-bit unsigned integer with the
+following internal format.
+
+        BBBBFFFF
+        ^      ^
+        |      +---- Least significant bit
+        |
+      Most significant bit
+
+BBBB and FFFF are 4-bit values telling the background and foreground
+colors of the location.
+
+U is a 32-bit unsigned integer, in big endian, that tells the unicode code
+point in this location. At the moment, the protocol supports having only one
+unicode code point per location[2].
+
+All in all, bit by bit, this is the format of one change in one location.
+
+    XXXXXXXX XXXXXXXX YYYYYYYY YYYYYYYY BBBBFFFF UUUUUUUU UUUUUUUU
+    UUUUUUUU UUUUUUUU
+
+That's 9 bytes per location.
+
+These changes are packed tighly together in the binary.
+
+When client first joins a game, the first changeset will give changes for every
+location on the game display.
+
+[1] http://base91.sourceforge.net/
+[2] Internally Dfterm3 has support for arbitrary number of code points per
+    location but this is not exposed to the protocol.
+
+Chatting
+--------
+
+At the moment, chatting rooms are tied to game instances. That is, one chat
+room per one running game, no more, no less.
+
+Client can send a message to a game with this message:
+
+    client -> server
+    {
+        "message":"chat_to_game"
+       ,"instance_key":KEY
+       ,"content":CONTENT
+    }
+
+KEY is the same as the instance key returned in a join acknowledgement from
+server.
+
+Server reports chat events with this message:
+
+    server -> client
+    {
+        "message":"chat_to_game"
+       ,"instance_key":KEY
+       ,"speaker":SPEAKER
+       ,"content":CONTENT
+    }
+
+KEY is the instance key (see above). SPEAKER is a string that tells who was
+speaking. It is usually the username but you should not rely on this as future
+versions may have anything they want here. CONTENT is a string that contains
+the chat message.
+
+The chat messages sent by client to the server are "echoed back" to the client.
+This means that client gets a server event for chat messages the client
+themselves sent.
 
 
