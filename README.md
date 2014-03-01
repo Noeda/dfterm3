@@ -24,18 +24,14 @@ Dwarf Fortress.
 
 [2] <https://github.com/Noeda/dfhack>
 
-Installation instructions for dummies
+Installation instructions for Linux
 -------------------------------------
-
-These instructions are for Linux. Not everything works properly in Linux; for
-example, launching Dwarf Fortresses has problems.
 
 First, get yourself the Glasgow Haskell Compiler. Its name is usually "ghc" in
 Linux distributions. Make sure you get GHC version 7.6.3. Many distributions
 have a GHC from the 7.4.x series and that one is no good. The latest Haskell
-Platform (2013.2.0.0) uses the correct GHC
-and you might want to grab its binaries if you can't get the required software
-from your Linux distribution.
+Platform (2013.2.0.0) uses the correct GHC and you might want to grab its
+binaries if you can't get the required software from your Linux distribution.
 
 Next, get yourself the Dfterm3 source code:
 
