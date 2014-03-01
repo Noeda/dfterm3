@@ -14,6 +14,7 @@ import qualified Data.Text as T
 import Dfterm3.Game.DwarfFortress
 
 import Data.Typeable
+import Data.Semigroup
 import Control.Monad
 import Control.Applicative
 
@@ -58,10 +59,6 @@ data GameEntry =
     GameEntry
     { gameName :: T.Text
     , instanceName :: T.Text
-    , gameItself :: DwarfFortressPersistent   -- TODO: if we ever generalize to
-                                              -- other games, we have to
-                                              -- somehow get rid of DF
-                                              -- specificyness here
     , key :: T.Text }
     deriving ( Eq, Ord, Show, Read, Typeable )
 
@@ -79,6 +76,7 @@ instance ToJSON ServerToClient where
     toJSON (JoinAck {..}) =
         object [ "message" .= ("join_acknowledgement" :: T.Text)
                , "status"  .= statusJoinAck
+               , "instance_key" .= instanceKeyJoinAck
                , "notice"  .= noticeJoinAck ]
     toJSON (AllGames {..}) =
         object [ "message" .= ("all_games" :: T.Text)
@@ -88,6 +86,65 @@ instance ToJSON ServerToClient where
                , "instance_key" .= instanceKeyCTG
                , "speaker" .= speaker
                , "content" .= content ]
+
+instance FromJSON ServerToClient where
+    parseJSON (Object v) = do
+        msg <- v .: "message"
+        msum [ parseHandshake msg
+             , parseLoginAck msg
+             , parseJoinAck msg
+             , parseAllGames msg
+             , parseChatToGame msg ]
+      where
+        parseHandshake msg = do
+            guard (msg == ("handshake" :: T.Text))
+            server <- v .: "server"
+            guard (server == ("dfterm3" :: T.Text))
+            major <- v .: "major"
+            minor <- v .: "minor"
+            patch <- v .: "patch"
+            return Handshake { majorVersion = major
+                             , minorVersion = minor
+                             , patchVersion = patch }
+
+        parseLoginAck msg = do
+            guard (msg == ("login_acknowledgement" :: T.Text))
+            status <- v .: "status"
+            notice <- v .: "notice"
+            return LoginAck { status = status
+                            , notice = notice }
+
+        parseJoinAck msg = do
+            guard (msg == ("join_acknowledgement" :: T.Text))
+            status <- v .: "status"
+            notice <- v .: "notice"
+            key <- v .: "instance_key"
+            return JoinAck { statusJoinAck = status
+                           , noticeJoinAck = notice
+                           , instanceKeyJoinAck = key }
+
+        parseAllGames msg = do
+            guard (msg == ("all_games" :: T.Text))
+            games <- v .: "games"
+            return AllGames { games = games }
+
+        parseChatToGame msg = do
+            guard (msg == ("chat_to_game" :: T.Text))
+            key <- v .: "instance_key"
+            speaker <- v .: "speaker"
+            content <- v .: "content"
+            return ChatToGame { instanceKeyCTG = key
+                              , speaker = speaker
+                              , content = content }
+
+instance FromJSON GameEntry where
+    parseJSON (Object v) = do
+        game_name <- v .: "game_name"
+        instance_name <- v .: "instance_name"
+        key <- v .: "key"
+        return GameEntry { gameName = game_name
+                         , instanceName = instance_name
+                         , key = key }
 
 instance ToJSON GameEntry where
     toJSON (GameEntry {..}) =
@@ -101,6 +158,30 @@ instance FromJSON Identity where
              , do True <- v .: "guest"
                   return Guest ]
     parseJSON _ = mzero
+
+instance ToJSON ClientToServer where
+    toJSON (Login {..}) =
+        object $ (case password of
+                    Nothing -> []
+                    Just pw -> [ "password" .= pw ]) <>
+                 [ "message" .= ("login" :: T.Text)
+                 , "identity" .= identity ]
+
+    toJSON QueryAllGames =
+        object [ "message" .= ("query_all_games" :: T.Text) ]
+
+    toJSON (JoinGame {..}) =
+        object [ "message" .= ("join_game" :: T.Text)
+               , "key"     .= keyJoinGame ]
+
+    toJSON (ChatToGameClient {..}) =
+        object [ "message" .= ("chat_to_game" :: T.Text)
+               , "instance_key" .= instanceKeyCTGClient
+               , "content"      .= contentClient ]
+
+instance ToJSON Identity where
+    toJSON (User x) = object [ "user" .= x ]
+    toJSON Guest    = object [ "guest" .= True ]
 
 instance FromJSON ClientToServer where
     parseJSON (Object v) = do

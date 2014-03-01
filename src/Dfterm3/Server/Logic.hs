@@ -39,7 +39,7 @@ data ClientState = ClientState
     , sender  :: ServerToClient -> IO ()
     , userName :: T.Text
     , subscriptions :: IORef (M.Map T.Text Subscription)
-    , lastGameList :: [GameEntry] }
+    , lastGameList :: [(GameEntry, DwarfFortressPersistent)] }
     deriving ( Typeable )
 
 type Client a = StateT ClientState
@@ -131,11 +131,11 @@ joinGame gamekey = do
     last_entries <- lastGameList <$> get
     subscribe_key <- makeRandomInstanceKey
     let ack = ack' subscribe_key
-    case find ((== gamekey) . Dfterm3.Server.Types.key) last_entries of
+    case find ((== gamekey) . Dfterm3.Server.Types.key . fst) last_entries of
         Nothing ->
             yield (ack { noticeJoinAck = "No such game." })
         Just entry -> do
-            inst <- getStorage >>= liftIO . procureInstance (gameItself entry)
+            inst <- getStorage >>= liftIO . procureInstance (snd entry)
             case inst of
                 Nothing ->
                     yield (ack { noticeJoinAck =
@@ -209,13 +209,13 @@ queryAllGames :: Client ()
 queryAllGames = do
     games <- keyify <$> (runSubIO lookForPotentialGames)
     let entries = fmap (\(key, game) ->
-                    GameEntry
-                        { gameName = "Dwarf Fortress"
-                        , instanceName = Dfterm3.GameSubscription.gameName game
-                        , gameItself = game
-                        , key = key })
+                    ( GameEntry
+                         { gameName = "Dwarf Fortress"
+                         , instanceName = Dfterm3.GameSubscription.gameName game
+                         , key = key }
+                    , game ))
                        (games :: [(T.Text, DwarfFortressPersistent)])
-    yield (AllGames entries)
+    yield (AllGames $ fmap fst entries)
     modify (\x -> x { lastGameList = entries })
   where
     keyify = zip (fmap (T.pack . show) [1..])

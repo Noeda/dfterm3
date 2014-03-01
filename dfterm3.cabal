@@ -92,7 +92,7 @@ library
 executable dfterm3
   hs-source-dirs:      main
   ghc-options:         -Wall -threaded -fno-warn-name-shadowing
-  main-is:           RealMain.hs
+  main-is:             RealMain.hs
 
   other-modules:       ConfiguredDefaults
   build-depends:       dfterm3
@@ -111,4 +111,18 @@ executable dfterm3
       build-depends:  unix ==2.6.*
                      ,daemons ==0.2.*
                      ,HsOpenSSL ==0.10.*
+
+executable dfterm3-cli-client
+  hs-source-dirs:     cli-client
+  ghc-options:        -Wall -threaded -fno-warn-name-shadowing
+  main-is:            Main.hs
+  build-depends:      dfterm3
+                     ,base ==4.6.*
+                     ,network ==2.4.*
+                     ,semigroups ==0.12.*
+                     ,websockets ==0.8.*
+                     ,transformers ==0.3.*
+                     ,mtl ==2.1.*
+                     ,aeson ==0.7.*
+                     ,text ==0.11.*
 
