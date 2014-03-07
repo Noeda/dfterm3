@@ -1,24 +1,15 @@
+var jquery = require('jquery2');
+var Backbone = require('backbone');
+Backbone.$ = jquery;
+
 var connection = require('./connection.js');
+var login = require('./login_ui.js');
+var status_ui = require('./status_bar.js');
 
 var ob = new connection.Dfterm3Connection;
-ob.on("login_failed", function() {
-    document.write("Login failed.");
-});
+var login_box = new login.LoginBox({ model: ob });
+var status_bar = new status_ui.StatusBar({ model: ob });
 
-ob.on("change:logged_in", function(new_value) {
-    document.write("Have I logged in?");
-    document.write(new_value.get("logged_in"));
-});
-
-ob.on("change:connected", function(new_value) {
-    document.write("Have I connected?");
-    document.write(new_value.get("connected"));
-});
-
-ob.on("error_in_websocket_connection", function() {
-    document.write("Some error happened while trying to make a WebSocket " +
-                   "connection.");
-});
-
-window.stupid = ob; // prevent garbage collection
+document.body.appendChild(status_bar.el);
+document.body.appendChild(login_box.el);
 

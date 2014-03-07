@@ -1,0 +1,51 @@
+/* Dfterm3 skeleton CSS. The purpose of this file is to document what IDs and
+ * classes exist in the user interface and not actually style anything. */
+
+/*********************
+ * The generic stuff *
+ *********************/
+
+body {
+}
+
+/* The style of all buttons. At the moment, all the buttons also have an ID
+ * that can be used to override the style given here. */
+.button {
+}
+
+/******************
+ * The status bar *
+ ******************/
+
+/* The style of the status bar. The status bar is a paragraph element. */
+#status-bar {
+}
+
+/*****************
+ * The login box *
+ *****************/
+
+/* The style of the login box form. */
+#login-box {
+}
+
+/* The style of the username label */
+#username_label {
+}
+
+/* The style of the password label */
+#password_label {
+}
+
+/* The style of the username input */
+#username {
+}
+
+/* The style of the password input */
+#password {
+}
+
+/* The button that submits the login box. (it's also part of class "button") */
+#login_button {
+}
+

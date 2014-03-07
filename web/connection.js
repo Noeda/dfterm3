@@ -38,17 +38,20 @@ var Dfterm3Connection = Backbone.Model.extend({
         }
 
         t.websocket = new WebSocket( t.get("websocket_target") );
+        t.set( {"connecting": true });
         t.websocket.onopen = function() {
             t.set({ "connected": true })
         }
         t.websocket.onclose = function() {
             delete t.websocket;
             set_disconnect_attributes();
+            t.set( {"connecting": false });
         }
         t.websocket.onerror = function() {
             disconnect();
             set_disconnect_attributes();
             t.trigger( "error_in_websocket_connection" );
+            t.set( {"connecting": false });
         }
         t.websocket.onmessage = function(e) {
             var msg = JSON.parse( e.data );
@@ -68,6 +71,7 @@ var Dfterm3Connection = Backbone.Model.extend({
                 if ( msg.status === true ) {
                     t.set({ "logged_in": true })
                 } else {
+                    t.set({ "do_implicit_login": false });
                     t.trigger( "login_failed" );
                 }
             }
@@ -106,11 +110,12 @@ var Dfterm3Connection = Backbone.Model.extend({
 
    ,defaults: {
         "websocket_target":    "ws://127.0.0.1:8000"
+       ,"connecting":          false
        ,"connected":           false
        ,"logged_in":           false
        ,"username":            false
        ,"guest":               true
-       ,"do_implicit_login":   true
+       ,"do_implicit_login":   false
        ,"password":            false
     }
 });
