@@ -38,7 +38,7 @@ var StatusBar = Backbone.View.extend({
            }
        } else if ( this.model.get("logged_in") === false ) {
            this.$el.text("not logged in");
-       } else if ( this.model.get("guest") === false ) {
+       } else if ( this.model.get("guest") === true ) {
            this.$el.text("guest");
        } else {
            this.$el.text("logged in as " + this.model.get("username"));
