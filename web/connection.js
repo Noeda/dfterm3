@@ -37,6 +37,10 @@ var Dfterm3Connection = Backbone.Model.extend({
             return t.websocket.send( JSON.stringify(something) );
         }
 
+        function handle_games_message(games) {
+            t.set({"available_games": games });
+        }
+
         t.websocket = new WebSocket( t.get("websocket_target") );
         t.set( {"connecting": true });
         t.websocket.onopen = function() {
@@ -75,8 +79,21 @@ var Dfterm3Connection = Backbone.Model.extend({
                     t.trigger( "login_failed" );
                 }
             }
+            else if ( msg.message === "all_games" ) {
+                handle_games_message( msg.games );
+            }
         }
     }
+
+   /* Asks the server for a new list of games. Must be connected and logged in.
+    * If not, then does nothing. */
+   ,update_game_list: function() {
+       if ( t.get("connected") !== true || t.get("logged_in") === false ) {
+           return;
+       }
+
+       t.snd({ "message": "query_all_games" });
+   }
 
    ,do_login: function() {
         var t = this;
@@ -115,8 +132,9 @@ var Dfterm3Connection = Backbone.Model.extend({
        ,"logged_in":           false
        ,"username":            false
        ,"guest":               true
-       ,"do_implicit_login":   false
+       ,"do_implicit_login":   true
        ,"password":            false
+       ,"available_games":     []
     }
 });
 
