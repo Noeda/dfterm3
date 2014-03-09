@@ -115,6 +115,8 @@ ARRAY is an array of games. Each item in the array has the following form:
         "game_name":GAME-NAME
         "instance_name":INSTANCE-NAME
         "key":KEY
+        "made-available":MADE-AVAILABLE        optional
+        "handler":HANDLER                      optional
     }
 
 GAME-NAME is the general name of what game this is. As in, this is "Dwarf
@@ -125,6 +127,14 @@ Fortress" then INSTANCE-NAME could be "0.31.11 Running ABC Modpack" or
 something like that.
 
 KEY is a string that uniquely identifies this game.
+
+MADE-AVAILABLE is a boolean and can only be seen by administrators. If it is
+true, it means the game is registered to the server and can (usually) be seen
+by non-admins.
+
+HANDLER is also only seen by administrators and only if the game has been made
+available. (that is, MADE-AVAILABLE and HANDLER will never appear in the same
+message).
 
 The client can then join a game by sending this message:
 
@@ -157,6 +167,45 @@ client asks to join a game. The server shall keep state in such a way that when
 client asks to join a game, the KEY refers in the same set of keys as was
 reported by the server in last listing of games. In case the game is no longer
 valid, then trying to join the game will properly report an error.
+
+If the client has logged in as an administrator, they can also do:
+
+    client -> server
+    {
+        "message":"make_available"
+        "handler":HANDLER
+        "instance_key":KEY
+    }
+
+If "make_available" message is used, the game is made available for playing.
+HANDLER is the name of the script to use for dealing with matters such as who
+can watch or play the game. They can be added by users of the servers so the
+list of valid names cannot all be listed here. However, the following names are
+guaranteed to be available:
+
+    "private"             Only administrator(s) can watch and play the game.
+                          The game won't even appear in game listings.
+
+    "watch-only"          This game can only be watched. No one
+                          (except administators) can play. There are no
+                          restrictions on who can watch though. Anyone can use
+                          the game chat.
+
+    "silent-watch-only"   Same as "watch-only" but chatting is restricted to
+                          administrators only.
+
+Server acknowledges the availability request with this message:
+
+    server -> client
+    {
+        "message":"make_available_acknowledgement"
+        "status":STATUS
+        "notice":NOTICE
+    }
+
+STATUS is a boolean true if the request succeeded. NOTICE may be a
+human-readable message telling why the request failed or it may be empty. It
+will always be present.
 
 Game display
 ------------
