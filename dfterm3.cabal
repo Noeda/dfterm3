@@ -47,26 +47,26 @@ library
 
   c-sources:           src/c/wcwidth.c
 
-  build-depends:       base ==4.6.*
+  build-depends:       base >=4.6.0.0 && <5.0.0.0
                       ,safecopy ==0.8.*
                       ,transformers ==0.3.*
                       ,mtl ==2.1.*
                       ,acid-state ==0.12.*
                       ,bytestring ==0.10.*
-                      ,text ==0.11.*
+                      ,text ==1.1.*
                       ,lens ==4.0.*
                       ,cereal ==0.4.*
                       ,containers ==0.5.*
                       ,stm ==2.4.*
                       ,random ==1.0.*
                       ,directory ==1.2.*
-                      ,array ==0.4.*
+                      ,array ==0.5.*
                       ,utf8-string ==0.3.*
                       ,type-level ==0.2.*
                       ,protobuf ==0.1.*
                       ,pipes ==4.1.*
                       ,pipes-safe ==2.0.*
-                      ,process ==1.1.*
+                      ,process ==1.2.*
                       ,time ==1.4.*
                       ,hslogger ==1.2.*
                       ,network ==2.4.*
@@ -85,7 +85,7 @@ library
       build-depends:  Win32 ==2.3.*
       cpp-options:    "-DWINDOWS"
   else
-      build-depends:  unix ==2.6.*
+      build-depends:  unix ==2.7.*
                      ,daemons ==0.2.*
                      ,HsOpenSSL ==0.10.*
 
@@ -96,9 +96,9 @@ executable dfterm3
 
   other-modules:       ConfiguredDefaults
   build-depends:       dfterm3
-                      ,base ==4.6.*
+                      ,base >=4.6.0.0 && <5.0.0.0
                       ,network ==2.4.*
-                      ,text ==0.11.*
+                      ,text ==1.1.*
                       ,directory ==1.2.*
                       ,semigroups ==0.12.*
 
@@ -108,7 +108,7 @@ executable dfterm3
       cpp-options:    "-DWINDOWS"
       ld-options:     icon/icon.o
   else
-      build-depends:  unix ==2.6.*
+      build-depends:  unix ==2.7.*
                      ,daemons ==0.2.*
                      ,HsOpenSSL ==0.10.*
 
@@ -117,12 +117,12 @@ executable dfterm3-cli-client
   ghc-options:        -Wall -threaded -fno-warn-name-shadowing
   main-is:            Main.hs
   build-depends:      dfterm3
-                     ,base ==4.6.*
+                     ,base >=4.6.0.0 && <5.0.0.0
                      ,network ==2.4.*
                      ,semigroups ==0.12.*
                      ,websockets ==0.8.*
                      ,transformers ==0.3.*
                      ,mtl ==2.1.*
                      ,aeson ==0.7.*
-                     ,text ==0.11.*
+                     ,text ==1.1.*
 
