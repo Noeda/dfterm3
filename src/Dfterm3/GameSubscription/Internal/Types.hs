@@ -16,6 +16,7 @@ module Dfterm3.GameSubscription.Internal.Types
     , ChatEvent(..)
     , AnyGameInstance(..)
     , Procurement(..)
+    , Publishment(..)
 
     , initialSubscriptionStatePersistent
 
@@ -156,7 +157,17 @@ data GameSubscription game =
 
 data SubscriptionStatePersistent =
     SubscriptionStatePersistent
-    { _publishedGames :: M.Map B.ByteString (B.ByteString, B.ByteString) }
+    { _publishedGames ::
+         M.Map
+             B.ByteString                  -- ^ `uniqueKey`
+             Publishment
+    }
+
+data Publishment = Publishment
+    { uniqueGameWideKeyP :: B.ByteString
+    , serializedGame     :: B.ByteString
+    , handler            :: T.Text }
+    deriving ( Eq, Ord, Show, Read, Typeable )
 
 initialSubscriptionStatePersistent :: SubscriptionStatePersistent
 initialSubscriptionStatePersistent = SubscriptionStatePersistent M.empty
@@ -173,5 +184,6 @@ makeLenses ''SubscriptionStateVolatile
 makeLenses ''GameInstance
 
 makeLenses ''SubscriptionStatePersistent
+deriveSafeCopy 0 'base ''Publishment
 deriveSafeCopy 0 'base ''SubscriptionStatePersistent
 

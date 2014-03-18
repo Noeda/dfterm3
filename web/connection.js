@@ -59,6 +59,7 @@ var Dfterm3Connection = Backbone.Model.extend({
         }
         t.websocket.onmessage = function(e) {
             var msg = JSON.parse( e.data );
+            console.log(e.data);
 
             if ( msg.message === "handshake" ) {
                 if ( msg.major !== WANTED_MAJOR_VERSION ) {
@@ -73,7 +74,8 @@ var Dfterm3Connection = Backbone.Model.extend({
             }
             else if ( msg.message === "login_acknowledgement" ) {
                 if ( msg.status === true ) {
-                    t.set({ "logged_in": true })
+                    t.set({ "logged_in": true });
+                    t.update_game_list();
                 } else {
                     t.set({ "do_implicit_login": false });
                     t.trigger( "login_failed" );
@@ -88,6 +90,7 @@ var Dfterm3Connection = Backbone.Model.extend({
    /* Asks the server for a new list of games. Must be connected and logged in.
     * If not, then does nothing. */
    ,update_game_list: function() {
+       var t = this;
        if ( t.get("connected") !== true || t.get("logged_in") === false ) {
            return;
        }

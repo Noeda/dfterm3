@@ -18,11 +18,11 @@ import qualified Data.Map.Strict as M
 import qualified Data.ByteString as B
 
 publishedGames' :: Lens' PersistentStorageState
-                         (M.Map B.ByteString (B.ByteString, B.ByteString))
+                         (M.Map B.ByteString Publishment)
 publishedGames' = gameSubscriptions . publishedGames
 
 tryPublishGame :: B.ByteString
-               -> (B.ByteString, B.ByteString)
+               -> Publishment
                -> Update PersistentStorageState Bool
 tryPublishGame key game = do
     old_games <- use publishedGames'
@@ -42,7 +42,6 @@ tryRemoveGame key = do
 
 getPublishedGames :: Query PersistentStorageState (M.Map
                                                    B.ByteString
-                                                   ( B.ByteString
-                                                   , B.ByteString ))
+                                                   Publishment)
 getPublishedGames = view publishedGames'
 

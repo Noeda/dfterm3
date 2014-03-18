@@ -57,6 +57,7 @@ module Dfterm3.GameSubscription
     , SubscriptionIO()
     , runSubscriptionIO
       -- * Misc
+    , gameHandler
     , lookForPotentialGames
     , lookForPublishedGames )
     where
@@ -100,14 +101,19 @@ import Control.Exception ( mask_, finally )
 --
 publishGame :: PublishableGame game
             => game                 -- ^ Game to publish.
+            -> T.Text               -- ^ The default handler for the game.
             -> SubscriptionIO ()
-publishGame game = do
+publishGame game handler = do
     state <- useAcidState
     SubscriptionIO $ do
         replaced_something <- liftIO $
             update state $ TryPublishGame game_key
-                                          ( uniqueGameWideKey game
-                                          , runPut $ safePut game )
+                                          Publishment
+                                          { uniqueGameWideKeyP =
+                                              uniqueGameWideKey game
+                                          , serializedGame =
+                                              runPut $ safePut game
+                                          , handler = handler }
 
         when replaced_something $ unwrap $
             stopInstancesByGameKey game_key >>= runStoppers
@@ -244,7 +250,7 @@ rawInstance = _gameInstance
 getSubscriberNames :: GameInstance game -> IO (S.Set T.Text)
 getSubscriberNames game = M.keysSet `fmap` readIORef (_onlineUsers game)
 
--- | Same as `getSusbcriberNames` but uses a `GameSubcription` value instead.
+-- | Same as `getSubscriberNames` but uses a `GameSubcription` value instead.
 getSubscriberNames' :: GameSubscription game -> IO (S.Set T.Text)
 getSubscriberNames' = getSubscriberNames . _subscriberGameInstance
 
@@ -437,6 +443,15 @@ lookForPotentialGames = do
             Nothing -> True
             Just _  -> False
 
+-- | Returns the handler name of a published game.
+--
+-- May return `Nothing` if no such game is available.
+gameHandler :: PublishableGame game => game -> SubscriptionIO (Maybe T.Text)
+gameHandler game = do
+    state <- useAcidState
+    published_games <- liftIO $ query state GetPublishedGames
+    return $ fmap handler $ M.lookup (uniqueKey game) published_games
+
 -- | Returns all published games of some game type.
 lookForPublishedGames :: forall game.
                          PublishableGame game => SubscriptionIO [game]
@@ -444,9 +459,10 @@ lookForPublishedGames = do
     state <- useAcidState
     SubscriptionIO $ liftIO $ do
         published_games <- M.elems `fmap` query state GetPublishedGames
-        return $ fmap (\(snd -> x) ->
+        return $ fmap (\(serializedGame -> x) ->
                           assumeRight $ runGet safeGet x)
-                      (filter (\x -> fst x == key) published_games)
+                      (filter (\x -> uniqueGameWideKeyP x == key)
+                              published_games)
   where
     assumeRight (Right x) = x
     assumeRight _ = error "Malformed game data in persistent storage."

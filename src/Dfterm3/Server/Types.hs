@@ -1,17 +1,17 @@
 {-# LANGUAGE DeriveDataTypeable, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Dfterm3.Server.Types
     ( ServerToClient(..)
     , ClientToServer(..)
     , GameEntry(..)
+    , AdminGameEntry(..)
     , Identity(..)
     , handshake )
     where
 
 import Data.Aeson
 import qualified Data.Text as T
-
-import Dfterm3.Game.DwarfFortress
 
 import Data.Typeable
 import Data.Semigroup
@@ -31,7 +31,7 @@ data ServerToClient =
     , instanceKeyJoinAck :: !T.Text
     , noticeJoinAck :: !T.Text }
   | AllGames
-    { games  :: [GameEntry] }
+    { games  :: [Either GameEntry AdminGameEntry] }
   | ChatToGame
     { instanceKeyCTG :: !T.Text
     , speaker        :: !T.Text
@@ -62,6 +62,15 @@ data GameEntry =
     , key :: T.Text }
     deriving ( Eq, Ord, Show, Read, Typeable )
 
+data AdminGameEntry =
+    AdminGameEntry
+    { gameNameA :: T.Text
+    , instanceNameA :: T.Text
+    , keyA :: T.Text
+    , madeAvailable :: Bool
+    , handler :: Maybe T.Text }
+    deriving ( Eq, Ord, Show, Read, Typeable )
+
 instance ToJSON ServerToClient where
     toJSON (Handshake {..}) =
         object [ "message" .= ("handshake" :: T.Text)
@@ -80,7 +89,11 @@ instance ToJSON ServerToClient where
                , "notice"  .= noticeJoinAck ]
     toJSON (AllGames {..}) =
         object [ "message" .= ("all_games" :: T.Text)
-               , "games"   .= games ]
+               , "games"   .=
+                   -- Avoid going through Either for aeson
+                   fmap (\case
+                       Left l ->  toJSON l
+                       Right r -> toJSON r) games ]
     toJSON (ChatToGame {..}) =
         object [ "message" .= ("chat_to_game" :: T.Text)
                , "instance_key" .= instanceKeyCTG
@@ -137,6 +150,8 @@ instance FromJSON ServerToClient where
                               , speaker = speaker
                               , content = content }
 
+    parseJSON _ = mzero
+
 instance FromJSON GameEntry where
     parseJSON (Object v) = do
         game_name <- v .: "game_name"
@@ -146,11 +161,37 @@ instance FromJSON GameEntry where
                          , instanceName = instance_name
                          , key = key }
 
+    parseJSON _ = mzero
+
+instance FromJSON AdminGameEntry where
+    parseJSON (Object v) = do
+        game_name <- v .: "game_name"
+        instance_name <- v .: "instance_name"
+        key <- v .: "key"
+        handler <- v .: "handler"
+        made_available <- v .: "made-available"
+        return AdminGameEntry
+            { gameNameA = game_name
+            , instanceNameA = instance_name
+            , keyA = key
+            , handler = handler
+            , madeAvailable = made_available }
+
+    parseJSON _ = mzero
+
 instance ToJSON GameEntry where
     toJSON (GameEntry {..}) =
         object [ "game_name" .= gameName
                , "instance_name" .= instanceName
                , "key" .= key ]
+
+instance ToJSON AdminGameEntry where
+    toJSON (AdminGameEntry {..}) =
+        object [ "game_name" .= gameNameA
+               , "instance_name" .= instanceNameA
+               , "key" .= keyA
+               , "made-available" .= madeAvailable
+               , "handler" .= handler ]
 
 instance FromJSON Identity where
     parseJSON (Object v) = do

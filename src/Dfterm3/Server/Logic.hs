@@ -39,7 +39,8 @@ data ClientState = ClientState
     , sender  :: ServerToClient -> IO ()
     , userName :: T.Text
     , subscriptions :: IORef (M.Map T.Text Subscription)
-    , lastGameList :: [(GameEntry, DwarfFortressPersistent)] }
+    , lastGameList :: [( Either GameEntry AdminGameEntry
+                       , DwarfFortressPersistent)] }
     deriving ( Typeable )
 
 type Client a = StateT ClientState
@@ -131,7 +132,7 @@ joinGame gamekey = do
     last_entries <- lastGameList <$> get
     subscribe_key <- makeRandomInstanceKey
     let ack = ack' subscribe_key
-    case find ((== gamekey) . Dfterm3.Server.Types.key . fst) last_entries of
+    case find finder last_entries of
         Nothing ->
             yield (ack { noticeJoinAck = "No such game." })
         Just entry -> do
@@ -161,6 +162,11 @@ joinGame gamekey = do
     ack' key = JoinAck { statusJoinAck = False
                        , instanceKeyJoinAck = key
                        , noticeJoinAck = "" }
+
+    finder ((Left gameentry), _) =
+        ((== gamekey) . Dfterm3.Server.Types.key) gameentry
+    finder ((Right admin_gameentry), _) =
+        ((== gamekey) . Dfterm3.Server.Types.keyA) admin_gameentry
 
 makeRandomInstanceKey :: Client T.Text
 makeRandomInstanceKey = do
@@ -207,18 +213,35 @@ subscriptionHandling subscription key sender = rec
 
 queryAllGames :: Client ()
 queryAllGames = do
-    games <- keyify <$> (runSubIO lookForPotentialGames)
-    let entries = fmap (\(key, game) ->
-                    ( GameEntry
-                         { gameName = "Dwarf Fortress"
-                         , instanceName = Dfterm3.GameSubscription.gameName game
-                         , key = key }
-                    , game ))
-                       (games :: [(T.Text, DwarfFortressPersistent)])
-    yield (AllGames $ fmap fst entries)
-    modify (\x -> x { lastGameList = entries })
+    is_admin <- isAdmin
+    entries <- runSubIO $ do
+        unreg_entries <- if is_admin then lookForPotentialGames else return []
+        user_entries <- lookForPublishedGames
+        return ( zip (repeat True) unreg_entries <>
+                 zip (repeat False) user_entries )
+
+    let admin_games = fmap (\(key, (is_unregistered, game)) ->
+                ( if is_admin then
+                     Right $ AdminGameEntry
+                     { gameNameA = "Dwarf Fortress"
+                     , instanceNameA =
+                         Dfterm3.GameSubscription.gameName game
+                     , keyA = key
+                     , madeAvailable = not is_unregistered
+                     , handler = Nothing }
+                     else
+                     Left $ GameEntry
+                     { gameName = "Dwarf Fortress"
+                     , instanceName =
+                         Dfterm3.GameSubscription.gameName game
+                     , key = key }
+                , game ))
+                   (keyify $ (entries :: [(Bool, DwarfFortressPersistent)]))
+
+    yield (AllGames $ fmap fst admin_games)
+    modify (\x -> x { lastGameList = admin_games })
   where
-    keyify = zip (fmap (T.pack . show) [1..])
+    keyify = zip (fmap (T.pack . show) [(1 :: Int)..])
 
 doLogin :: Client ()
 doLogin = do
@@ -255,6 +278,9 @@ doLogin = do
                                                          "or password." })
                                        doLogin
                _ -> error "impossible"
+
+isAdmin :: Client Bool
+isAdmin = return False
 
 -- Fake pipes. Maybe no one notices they are not quite real.
 yield :: ServerToClient -> Client ()

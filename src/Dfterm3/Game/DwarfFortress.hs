@@ -498,7 +498,8 @@ launchDwarfFortress df mvar = do
                                 , std_out = stream
                                 , std_err = stream
                                 , close_fds = True
-                                , create_group = True }
+                                , create_group = True
+                                , delegate_ctlc = False }
 
     maybe_pid <- pidOfHandle phandle
     logInfo $
@@ -523,14 +524,14 @@ pidOfHandle phandle =
     withProcessHandle phandle $ \p ->
 #ifdef WINDOWS
         case p of
-            ClosedHandle _ -> return (p, Nothing)
+            ClosedHandle _ -> return Nothing
             OpenHandle pid -> do
                 real_pid <- W.getProcessId pid
-                return (p, Just $ fromIntegral real_pid)
+                return $ Just $ fromIntegral real_pid
 #else
         return $ case p of
-            ClosedHandle _ -> (p, Nothing)
-            OpenHandle pid -> (p, Just $ fromIntegral pid)
+            ClosedHandle _ -> Nothing
+            OpenHandle pid -> Just $ fromIntegral pid
 #endif
 
 procurement :: GameRawInstance DwarfFortressPersistent
