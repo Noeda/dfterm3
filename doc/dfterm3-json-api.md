@@ -91,6 +91,11 @@ server notice that should be seen at login such as a MOTD.
 Only after a successful login has been completed, other kinds of messages can
 be exchanged.
 
+It is possible to perform login again during the connection but only to upgrade
+from a guest to a user. If you are already logged in as a user, you are not
+allowed to login to another user. You must disconnect and make another
+connection to login as another user.
+
 Game sessions
 -------------
 
@@ -329,5 +334,43 @@ the chat message.
 The chat messages sent by client to the server are "echoed back" to the client.
 This means that client gets a server event for chat messages the client
 themselves sent.
+
+User registration
+-----------------
+
+Not everyone wants to stay as a guest.
+
+If client is currently logged in as a guest, they are allowed to do a
+registration.
+
+    client -> server
+    {
+        "message":"register"
+        "username":USERNAME
+        "password":PASSWORD       optional
+    }
+
+This message registers a new user and logs in the client as that user. The
+client must have already logged in as a guest. PASSWORD is optional but if set,
+it will set the first password of the user. However, the server may reject
+passwordless registrations.
+
+Server acknowledgement looks like this:
+
+    server -> client
+    {
+        "message":"register_acknowledgement"
+       ,"status":STATUS
+       ,"notice":NOTICE
+    }
+
+STATUS is a boolean true if registering succeeded and false if it did not.
+NOTICE is a human-readable string that tells why registration might have failed
+but it can be empty.
+
+If registration failed, the client remains logged in as a guest.
+
+There are no guarantees that registered users are persistent. It is possible
+that immediately upon disconnection, the user is removed from the system.
 
 
