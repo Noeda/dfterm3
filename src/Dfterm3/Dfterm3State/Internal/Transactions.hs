@@ -7,6 +7,7 @@ module Dfterm3.Dfterm3State.Internal.Transactions
     , GetPublishedGames(..)
     , AreGuestsEnabled(..)
     , AreRegistrationsEnabled(..)
+    , Adminize(..)
     , IsValidLogin(..) )
     where
 
@@ -20,5 +21,6 @@ makeAcidic ''PersistentStorageState [ 'tryPublishGame
                                     , 'getPublishedGames
                                     , 'areGuestsEnabled
                                     , 'areRegistrationsEnabled
-                                    , 'isValidLogin ]
+                                    , 'isValidLogin
+                                    , 'adminize ]
 

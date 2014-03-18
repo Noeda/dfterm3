@@ -1,7 +1,8 @@
 module Dfterm3.UserAccounting.Internal.Transactions
     ( areGuestsEnabled
     , areRegistrationsEnabled
-    , isValidLogin )
+    , isValidLogin
+    , adminize )
     where
 
 import Dfterm3.UserAccounting.Internal.Types
@@ -42,4 +43,14 @@ isValidLogin username pw = do
                                M.adjust (password .~ Just new_pass)
                                         username
                            return True
+
+adminize :: T.Text -> Update PersistentStorageState Bool
+adminize username = do
+    st <- _userAccounting <$> get
+    case M.lookup username (_userAccounts st) of
+        Nothing -> return False
+        Just account -> do
+            modify (over (userAccounting . userAccounts) $
+                    M.adjust (admin .~ True) username)
+            return True
 

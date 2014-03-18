@@ -3,6 +3,7 @@
 module Dfterm3.UserAccounting
     ( areGuestsEnabled
     , areRegistrationsEnabled
+    , adminize
     , isValidLogin )
     where
 
@@ -22,4 +23,8 @@ areRegistrationsEnabled (readPersistentStorage -> st) =
 isValidLogin :: T.Text -> T.Text -> Storage -> IO Bool
 isValidLogin username password (readPersistentStorage -> st) = do
     update st $ Trans.IsValidLogin username password
+
+adminize :: T.Text -> Storage -> IO Bool
+adminize username (readPersistentStorage -> st) = do
+    update st $ Trans.Adminize username
 

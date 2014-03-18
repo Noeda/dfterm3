@@ -9,6 +9,7 @@ import Dfterm3.Logging
 import Dfterm3.Dfterm3State
 import Dfterm3.Util
 import Dfterm3.Server.WebSocket
+import qualified Dfterm3.UserAccounting as UA
 
 import Data.Semigroup hiding ( Option )
 import Data.Typeable
@@ -43,7 +44,7 @@ data StartupOption = Websocket !Word16
                    | ShowHelp
                    | StorageLocation FilePath
                    | Daemonize (Maybe FilePath)
-                   | SetAdminPassword
+                   | Adminize T.Text
                    | UseSyslog
                    | DontUseDefaultPorts
                    deriving ( Eq, Ord, Show, Read, Typeable )
@@ -58,6 +59,9 @@ options = [ Option "w" ["websocket"]
           , Option "h?" ["help"]
             (NoArg ShowHelp)
             "show valid command line options and exit."
+          , Option [] ["adminize"]
+            (ReqArg (Adminize . T.pack) "USERNAME")
+            "make an user into an administrator"
           , Option "p" ["no-default-ports"]
             (NoArg DontUseDefaultPorts)
             "do not implicitly open services at some ports (see below)."
@@ -70,6 +74,10 @@ options = [ Option "w" ["websocket"]
             "use syslog for logging."
 #endif
           ]
+
+isAdminizeOption :: StartupOption -> Maybe T.Text
+isAdminizeOption (Adminize who) = Just who
+isAdminizeOption _ = Nothing
 
 isStorageOption :: StartupOption -> Bool
 isStorageOption (StorageLocation _) = True
@@ -108,6 +116,13 @@ maybeAddDefaultOptions options
     | DontUseDefaultPorts `notElem` options =
           options ++ [Websocket 8000]
     | otherwise = options
+
+hasOption :: (StartupOption -> Maybe a) -> [StartupOption] -> Maybe a
+hasOption _ [] = Nothing
+hasOption fun (x:rest) =
+    case fun x of
+        val@(Just _) -> val
+        Nothing -> hasOption fun rest
 
 run :: [StartupOption] -> IO ()
 run options
@@ -161,6 +176,13 @@ run options
         logInfo $ "Using '" ++ storage_directory ++ "' as storage directory."
         storage <- openStorage storage_directory
 
+        case hasOption isAdminizeOption options of
+            Just who -> do
+                adminize storage who
+                exitSuccess
+
+            Nothing -> return ()
+
         monitorDwarfFortresses
         threadDelay 500000
 
@@ -197,4 +219,11 @@ showHelp = do
                <> "interface.\n"
     putStrLn $ "Normally, a port is opened for WebSockets at port 8000 " <>
                "unless you pass --no-default-ports."
+
+adminize :: Storage -> T.Text -> IO ()
+adminize storage who = do
+    result <- UA.adminize who storage
+    if result
+      then putStrLn $ "It is done!"
+      else putStrLn $ "Failed. Does the user exist?"
 
