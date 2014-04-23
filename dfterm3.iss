@@ -22,6 +22,10 @@ Source: "web-interface\resources\interface.js"; DestDir: "{app}\web-interface\re
 Source: "web-interface\js\playing.js"; DestDir: "{app}\web-interface\js"
 Source: "web-interface\js\terminal.js"; DestDir: "{app}\web-interface\js"
 Source: "web-interface\js\timing.js"; DestDir: "{app}\web-interface\js"
+Source: "web-interface\resources\bootstrap\bootstrap-theme.min.css"; DestDir: "{app}\web-interface\bootstrap"
+Source: "web-interface\resources\bootstrap\bootstrap.min.css"; DestDir: "{app}\web-interface\bootstrap"
+Source: "web-interface\resources\bootstrap\bootstrap.min.js"; DestDir: "{app}\web-interface\bootstrap"
+Source: "web-interface\resources\bootstrap\LICENSE"; DestDir: "{app}\web-interface\bootstrap"
 
 [Run]
 Filename: "{app}\dfterm3.exe"; Description: "Launch Dfterm3"; Flags: postinstall nowait skipifsilent unchecked
