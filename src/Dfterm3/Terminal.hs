@@ -61,10 +61,12 @@ foreign import ccall unsafe "unicode_string_width"
 -- It is not possible to guarantee the text will actually be this wide but it
 -- should be right most of the time, assuming correctly configured terminals.
 textWidth :: T.Text -> Int
-textWidth text = unsafePerformIO $
+textWidth text
+    | text == T.empty = 0
+    | otherwise = unsafePerformIO $
     allocaArray len $ \ptr -> do
         pokeArray (ptr :: Ptr CUInt)
-                  (fmap (fromIntegral . ord) $ T.unpack text)
+                  (fromIntegral . ord <$> T.unpack text)
         fromIntegral `fmap` c_unicode_string_width ptr (fromIntegral len)
   where
     len = T.length text

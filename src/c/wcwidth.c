@@ -230,6 +230,9 @@ int unicode_string_width(const uint32_t *pwcs, size_t n)
 {
   int w, width = 0;
 
+  if (n == 0)
+    return 0;
+
   for (;*pwcs && n-- > 0; pwcs++)
     if ((w = unicode_width(*pwcs)) < 0)
       return -1;
