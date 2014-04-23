@@ -11,7 +11,7 @@
  * These modifications shall be licensed (as far as it matters) in the same
  * license as Markus Kuhn below:
  *
- * 2013 (c) Mikko Juola
+ * 2013-2014 (c) Mikko Juola
  *
  * Permission to use, copy, modify, and distribute this software
  * for any purpose and without fee is hereby granted. The author
