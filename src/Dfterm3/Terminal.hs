@@ -38,6 +38,7 @@ module Dfterm3.Terminal
 import System.Random
 import Control.Lens hiding ( indices )
 import Control.Monad.ST
+import Control.Applicative
 import Data.Array.ST
 import Data.Typeable
 import Data.Array
