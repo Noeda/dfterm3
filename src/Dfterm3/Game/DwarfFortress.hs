@@ -498,6 +498,7 @@ launchDwarfFortress df mvar = do
                                 , std_out = stream
                                 , std_err = stream
                                 , close_fds = True
+                                , delegate_ctlc = False
                                 , create_group = True }
 
     maybe_pid <- pidOfHandle phandle
