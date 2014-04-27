@@ -41,7 +41,6 @@ dfterm3_playing = function() {
         var second_br_element = document.createElement("br"); // separates game
                                                               // from whatever
                                                               // comes after it
-        var status_element = document.createElement("span");
 
         var go_back_button = document.createElement("div");
         var go_back_button_a = document.createElement("a");
@@ -127,35 +126,20 @@ dfterm3_playing = function() {
         host_dom_element.appendChild( player_listing_div );
         host_dom_element.appendChild( terminal_dom_element );
 
-        status_element.textContent =
-            "Trying to make a connection to Dfterm3 server..."
-        status_element.setAttribute( "class"
-                                   , "dfterm3_connection_status_element_good" );
-
         title.textContent = "Unnamed"
 
-        var status = function( str, badness ) {
-            fade_status_in_after( 0.0 );
-            status_element.textContent = str;
-            if ( badness ) {
-                status_element.setAttribute(
-                          "class"
-                        , "dfterm3_connection_status_element_bad" );
-            } else {
-                status_element.setAttribute(
-                          "class"
-                        , "dfterm3_connection_status_element_good" );
+        var status_types = ['info', 'success', 'warning', 'danger']
+        var status = function( str, type ) {
+            type = String(type).toLowerCase();
+            if (status_types.indexOf(type) == -1) {
+                type = 'info';
             }
-            fade_status_out_after( 2.0 );
+            $.bootstrapGrowl(str, {type:type});
         }
-
-        var fade_status_out_after = function ( time ) {
-            fade_out( status_element, time );
-        }
-
-        var fade_status_in_after = function ( time ) {
-            fade_in( status_element, time );
-        }
+        $.extend(exports, {
+           status: status,
+           status_types: status_types,
+        });
 
         // Removes the terminal elements from the page, if they are there.
         // Otherwise does nothing.
@@ -238,8 +222,6 @@ dfterm3_playing = function() {
         }
 
         title.setAttribute("class", "dfterm3_terminal_title_bar");
-
-        terminal_dom_element.appendChild( status_element );
 
         // This function parses the WebSocket data received from Dfterm3 when
         // it is screen data. It updates the terminal (if there is one).
@@ -494,12 +476,12 @@ dfterm3_playing = function() {
 
         var socket = new WebSocket( host );
         socket.onopen = function() {
-            status("Connection established.", false );
+            status("Connection established.", "info" );
             hideCover();
             showLoginBox();
         }
         socket.onclose = function() {
-            status("No connection to server.", true );
+            status("No connection to server.", "danger" );
             showCover();
         }
         socket.onmessage = function(event) {
@@ -517,9 +499,9 @@ dfterm3_playing = function() {
                         jsonMessage( JSON.parse(reader2.result.substring(1)) );
                     }
                 } else if ( array_view[0] == LOGIN_REJECTED ) {
-                    status( "Login rejected", true );
+                    status( "Login rejected", "danger" );
                 } else if ( array_view[0] == LOGIN_ACCEPTED ) {
-                    status( "Logged in", false );
+                    status( "Logged in", "success" );
                     hideLoginBox();
                 } else if ( array_view[0] == GAME_IS_GONE ) {
                     game_is_gone_box.style.display = "inline";
