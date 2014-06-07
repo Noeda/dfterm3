@@ -1,38 +1,29 @@
 module Dfterm3.Prelude
-    ( module Data.Semigroup
-    , module Prelude
-    , module Control.Category
-    , module Data.Foldable
-    , module Data.Traversable
-    , module Control.Monad
-    , module Control.Applicative
-    , module Data.Maybe
-    , module Data.IORef
-    , module Data.Int
-    , module Data.Word
-    , module Data.Typeable
+    ( module Exports
     , safeFromIntegral
     , showT
     , atomicModifyIORef_' )
     where
 
-import Prelude hiding ( sequence, mapM, or, concat, notElem, elem
+import Prelude as Exports hiding
+                      ( sequence, mapM, or, concat, notElem, elem
                       , foldl, foldr1, concatMap, any, sum, foldr
                       , and, all, mapM_, sequence_, product, maximum
                       , foldl1, minimum, (.), id )
 
-import Data.Foldable
-import Data.Traversable
-import Data.Int
-import Data.Word
-import Data.Typeable
-import Control.Monad hiding ( msum, forM, forM_, sequence, mapM, mapM_
+import Data.Foldable as Exports
+import Data.Traversable as Exports
+import Data.Int as Exports
+import Data.Word as Exports
+import Data.Typeable as Exports
+import Control.Monad as Exports hiding
+                            ( msum, forM, forM_, sequence, mapM, mapM_
                             , sequence_ )
-import Control.Applicative
-import Control.Category
-import Data.Semigroup
-import Data.Maybe
-import Data.IORef
+import Control.Applicative as Exports
+import Control.Category as Exports
+import Data.Semigroup as Exports
+import Data.Maybe as Exports
+import Data.IORef as Exports
 import qualified Data.Text as T
 
 -- | Same as `show` but the result will be a `T.Text`, not `String`.

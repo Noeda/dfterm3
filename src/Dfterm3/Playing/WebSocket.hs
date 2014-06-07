@@ -33,7 +33,7 @@ type Logger = String -> IO ()
 runWebSocket :: String -> Word16 -> Storage -> IO ()
 runWebSocket hostname port _ = serve (Host hostname) (show port) $ \(s, saddr) -> do
     -- ol == our logger
-    let ol = \txt -> logInfo $ "(<WS> " <> show saddr <> ") " <> txt
+    let ol txt = logInfo $ "(<WS> " <> show saddr <> ") " <> txt
 
     flip finally (ol "Connection closed.") $ do
         ol "Connected."

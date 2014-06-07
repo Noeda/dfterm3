@@ -322,13 +322,13 @@ listOfPublishedGames games = do
             L.th "Game name"
             L.th "Executable path"
             L.th ""
-        forM_ games $ \df -> do
+        forM_ games $ \df ->
             L.tr $ do
                 L.td ! A.class_ "game_name" $
                     L.toHtml $ df^.customName
                 L.td ! A.class_ "game_exepath" $
                     L.toHtml (uniqueKey df)
-                L.td ! A.class_ "game_unregister" $ do
+                L.td ! A.class_ "game_unregister" $
                     L.form ! A.action "modify_game" !
                              A.method "post" $ do
                         L.input ! A.type_ "hidden" !
@@ -338,7 +338,7 @@ listOfPublishedGames games = do
                                   A.value "Unregister"
 
 manualAddGameHtml :: L.Markup
-manualAddGameHtml = do
+manualAddGameHtml =
     L.div ! A.class_ "manual_add_game" $ do
         L.h3 "Register a Dwarf Fortress manually:"
         L.form ! A.action "manual_add_game" !

@@ -75,7 +75,7 @@ isValidSessionID sid (readPersistentStorage -> ps) = do
 
 setNoAuthentication' :: Storage -> IO ()
 setNoAuthentication' (readPersistentStorage -> ps) =
-    update ps (SetEncryptedAdminPassword (NoAuthentication))
+    update ps (SetEncryptedAdminPassword NoAuthentication)
 
 setNoAuthentication :: B.ByteString -> Storage -> IO Bool
 setNoAuthentication old_password (readPersistentStorage -> ps) =

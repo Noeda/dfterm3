@@ -157,7 +157,7 @@ dfstate = unsafePerformIO newDFState
 
 lookForDwarfFortresses :: IO [DwarfFortressPersistent]
 lookForDwarfFortresses =
-    fmap (fmap toDFP) $ allAliveInstances dfstate
+    fmap toDFP <$> allAliveInstances dfstate
   where
     toDFP ginstance =
         DwarfFortressPersistent

@@ -341,8 +341,7 @@ waitForEvent subscription = do
                            Just  y -> GameChangesets y
 
     tryReadChatEvents =
-        fmap (fmap ChatEvent) $
-            tryReadTChan (_chatReceivingChannel subscription)
+        fmap ChatEvent <$> tryReadTChan (_chatReceivingChannel subscription)
 
 -- | Chat over a game subscription.
 chat :: PublishableGame game

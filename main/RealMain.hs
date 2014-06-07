@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, CPP, ForeignFunctionInterface #-}
+{-# LANGUAGE CPP #-}
 
 module Main ( main ) where
 
@@ -205,7 +205,7 @@ run options
             putStrLn ""
             putStrLn "Use any of the following URIs to access the administrator panel:"
             putStrLn ""
-            forM_ admin_panels $ \(AdminPanel port) -> do
+            forM_ admin_panels $ \(AdminPanel port) ->
                 putStrLn $ "http://127.0.0.1:" ++ show port ++ "/admin/"
             putStrLn ""
 
@@ -213,7 +213,7 @@ run options
             putStrLn ""
             putStrLn "Use any of the following URIs to access the playing interface:"
             putStrLn ""
-            forM_ websocket_http_ports $ \(WebsocketHTTP port) -> do
+            forM_ websocket_http_ports $ \(WebsocketHTTP port) ->
                 putStrLn $ "http://127.0.0.1:" ++ show port ++ "/"
             putStrLn ""
             putStrLn "If you want to access the interface from outside your computer, you "

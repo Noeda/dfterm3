@@ -6,4 +6,5 @@ dfterm3
 node_modules/
 web/
 cabal.sandbox.config
+lintings
 
