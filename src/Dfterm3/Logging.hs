@@ -20,7 +20,6 @@ import System.IO.Unsafe ( unsafePerformIO )
 import System.Log.Logger
 import System.Log.Handler.Simple
 import System.Log.Handler.Syslog
-import Data.IORef
 import Data.Time
 
 data LoggingSystem = Simple | Syslog

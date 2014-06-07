@@ -15,7 +15,6 @@ import Network.Simple.TCP hiding ( listen )
 import Data.Aeson
 import Network.WebSockets
 import Network.WebSockets.Connection
-import Control.Concurrent
 import Control.Exception
 import Data.ByteString.Internal ( c2w )
 import qualified Data.ByteString as B
@@ -32,7 +31,7 @@ import qualified Data.ByteString.UTF8 as BU
 type Logger = String -> IO ()
 
 runWebSocket :: String -> Word16 -> Storage -> IO ()
-runWebSocket hostname port ps = serve (Host hostname) (show port) $ \(s, saddr) -> do
+runWebSocket hostname port _ = serve (Host hostname) (show port) $ \(s, saddr) -> do
     -- ol == our logger
     let ol = \txt -> logInfo $ "(<WS> " <> show saddr <> ") " <> txt
 

@@ -61,7 +61,6 @@ import qualified Data.Serialize.Get as S
 import qualified Data.Serialize.Put as S
 
 import qualified Data.Aeson as J
-import Data.Aeson ( (.:) )
 
 #ifdef WINDOWS
 import qualified System.Win32.Process as W

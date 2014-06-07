@@ -13,10 +13,6 @@ module Dfterm3.Game.DwarfFortress.Internal.Running
     where
 
 import Dfterm3.Prelude
-import Data.Word
-import Data.IORef
-import Data.Maybe ( catMaybes )
-import Control.Monad
 import Control.Exception ( mask_ )
 import Control.Concurrent.MVar
 import qualified Data.ByteString as B

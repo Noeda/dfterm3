@@ -17,7 +17,6 @@ import Dfterm3.Dfterm3State.Internal.Types
 import System.Directory
 import Control.Concurrent.MVar
 import Data.Acid
-import Data.IORef
 
 import qualified Data.Map as M
 import qualified Data.Set as S

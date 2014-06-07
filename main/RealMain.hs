@@ -21,7 +21,6 @@ import System.Environment ( getArgs )
 import System.Console.GetOpt
 import System.Exit
 import System.IO
-import Data.List ( find )
 
 #ifndef WINDOWS
 import System.Posix.Daemon
@@ -32,7 +31,7 @@ import OpenSSL ( withOpenSSL )
 
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
 import Network.Simple.TCP ( withSocketsDo )
-import Control.Concurrent ( threadDelay, forkIO )
+import Control.Concurrent ( threadDelay )
 
 #ifdef WINDOWS
 withOpenSSL :: IO a -> IO a
@@ -159,8 +158,6 @@ run options
     admin_panels = filter isAdminPanelOption options
     websocket_ports = filter isWebsocketPortOption options
     websocket_http_ports = filter isWebsocketHTTPOption options
-
-    unwrap_admin_port (AdminPanel port) = port
 
     should_daemonize = any isDaemonizeOption options
     should_set_admin_password = SetAdminPassword `elem` options

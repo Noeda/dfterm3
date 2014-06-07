@@ -7,7 +7,6 @@ module Dfterm3.CP437ToUnicode
     where
 
 import Dfterm3.Prelude
-import Data.Word ( Word8 )
 import Data.Char ( chr )
 
 import qualified Data.Map as M

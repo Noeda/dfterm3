@@ -69,7 +69,6 @@ import Dfterm3.GameSubscription.Internal.SubscriptionIO
 import Dfterm3.Util
 
 import Data.SafeCopy ( safePut, safeGet )
-import Data.Typeable ( Typeable )
 import Data.Acid
 import Data.Serialize.Put
 import Data.Serialize.Get
