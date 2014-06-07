@@ -9,7 +9,6 @@ module Dfterm3.Util
     , finalizeFinRef
     , touchFinRef
     , FinRef()
-    , safeFromIntegral
     , forkDyingIO
     , forkExceptionTaggedIO
     , exceptionTaggedIO
@@ -17,10 +16,7 @@ module Dfterm3.Util
     , whenJustM )
     where
 
-import Data.Typeable ( Typeable )
-import Data.Foldable ( forM_ )
-import Control.Monad ( void, unless )
-import Data.IORef
+import Dfterm3.Prelude
 import Control.Concurrent
 import Control.Exception
 import System.IO
@@ -58,19 +54,6 @@ finalizeFinRef :: FinRef -> IO ()
 finalizeFinRef (FinRef _ bool_ref finalizer) = do
     dont_finalize <- atomicModifyIORef' bool_ref $ \old -> ( True, old )
     unless dont_finalize finalizer
-
--- | Almost the same as `fromIntegral` but raises a user error if the source
--- integer cannot be represented in the target type.
---
--- It is only almost the same because it can only convert integral types.
-safeFromIntegral :: forall a b. (Num a, Integral a, Num b, Integral b) =>
-                    a -> b
-safeFromIntegral from
-    | from /= (fromIntegral result :: a) = error "Invalid coercion."
-    | otherwise = result
-  where
-    result = fromIntegral from :: b
-{-# INLINE safeFromIntegral #-}
 
 touchFinRef :: FinRef -> IO ()
 touchFinRef (FinRef !_ !_ !_) = return ()

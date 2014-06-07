@@ -14,6 +14,7 @@ module Dfterm3.Logging
     , LoggingSystem(..) )
     where
 
+import Dfterm3.Prelude
 import System.IO ( stdout )
 import System.IO.Unsafe ( unsafePerformIO )
 import System.Log.Logger

@@ -16,10 +16,10 @@ module Dfterm3.Admin.Internal.Types
     , adminPassword )
     where
 
+import Dfterm3.Prelude
 import Crypto.Scrypt
 import Control.Lens
 import Data.SafeCopy
-import Data.Typeable ( Typeable )
 import qualified Data.ByteString as B
 import qualified Data.Map as M
 import Data.Time

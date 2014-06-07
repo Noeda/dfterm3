@@ -19,10 +19,9 @@ module Dfterm3.Dfterm3State.Internal.Types
     )
     where
 
+import Dfterm3.Prelude
 import Control.Lens
-import Data.Typeable ( Typeable )
 import Data.Acid
-import Data.IORef
 import Data.SafeCopy
 import Dfterm3.GameSubscription.Internal.Types
 import Dfterm3.Admin.Internal.Types

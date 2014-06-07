@@ -8,6 +8,7 @@ module ConfiguredDefaults
     ( defaultStorageDirectory )
     where
 
+import Dfterm3.Prelude
 import System.Directory
 
 #ifndef DEFAULT_STORAGE_DIRECTORY

@@ -35,14 +35,12 @@ module Dfterm3.Terminal
     , tuckBounds )
     where
 
+import Dfterm3.Prelude
 import System.Random
 import Control.Lens hiding ( indices )
 import Control.Monad.ST
-import Control.Applicative
 import Data.Array.ST
-import Data.Typeable
 import Data.Array
-import Data.Foldable
 import qualified Data.Text as T
 
 import System.IO.Unsafe ( unsafePerformIO )

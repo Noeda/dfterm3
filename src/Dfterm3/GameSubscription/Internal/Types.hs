@@ -33,12 +33,11 @@ module Dfterm3.GameSubscription.Internal.Types
     )
     where
 
+import Dfterm3.Prelude
 import Data.SafeCopy
-import Data.IORef
 import Control.Lens
 import Control.Concurrent.STM
 import Control.Concurrent.MVar
-import Data.Typeable ( Typeable )
 
 import qualified Data.Text as T
 import qualified Data.ByteString as B

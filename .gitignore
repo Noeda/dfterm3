@@ -2,4 +2,8 @@ dist
 dfterm3
 *~
 \#*#
+.cabal-sandbox/
+node_modules/
+web/
+cabal.sandbox.config
 

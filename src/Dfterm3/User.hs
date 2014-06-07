@@ -15,12 +15,10 @@ module Dfterm3.User
     )
     where
 
+import Dfterm3.Prelude
 import Dfterm3.Dfterm3State.Internal.Types
 import Dfterm3.Util
 
-import Data.Typeable ( Typeable )
-import Data.Foldable ( forM_ )
-import Data.IORef
 import Control.Monad.IO.Class ( MonadIO, liftIO )
 import Control.Exception ( mask_ )
 import Control.Lens

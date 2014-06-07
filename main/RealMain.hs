@@ -4,17 +4,16 @@ module Main ( main ) where
 
 import ConfiguredDefaults
 
+import Dfterm3.Prelude hiding ( Option )
 import Dfterm3.Game.DwarfFortress
 import Dfterm3.Logging
 import Dfterm3.Dfterm3State
-import Dfterm3.Playing.WebInterface
+import Dfterm3.Playing.WebSocket
 import Dfterm3.Util
 
 import Dfterm3.AdminPanel
 import qualified Dfterm3.Admin as A
 
-import Data.Typeable
-import Data.Word
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 
@@ -32,9 +31,8 @@ import OpenSSL ( withOpenSSL )
 #endif
 
 import GHC.Conc ( setNumCapabilities, getNumCapabilities, getNumProcessors )
-import Network ( withSocketsDo )
+import Network.Simple.TCP ( withSocketsDo )
 import Control.Concurrent ( threadDelay, forkIO )
-import Control.Monad ( forever, void, forM_, when, unless )
 
 #ifdef WINDOWS
 withOpenSSL :: IO a -> IO a
@@ -109,20 +107,20 @@ main = exceptionTaggedIO "main" $ do
     args <- getArgs
     withOpenSSL $ do
 #ifndef WINDOWS
-    void $ setFileCreationMask 0o077
+        void $ setFileCreationMask 0o077
 #endif
-    case getOpt Permute options args of
-        (options, [], []) -> run (maybeAddDefaultOptions options)
-        (_, e:_, []) -> do
-            hPutStrLn stderr $
-                "Unknown command line option " ++ show e
-            exitFailure
-        (_, _, errors) -> do
-            hPutStrLn stderr "Invalid command line options. "
-            forM_ errors (hPutStrLn stderr)
-            hPutStrLn stderr
-                "Use -h, -? or --help to see valid commane line options."
-            exitFailure
+        case getOpt Permute options args of
+            (options, [], []) -> run (maybeAddDefaultOptions options)
+            (_, e:_, []) -> do
+                hPutStrLn stderr $
+                    "Unknown command line option " ++ show e
+                exitFailure
+            (_, _, errors) -> do
+                hPutStrLn stderr "Invalid command line options. "
+                forM_ errors (hPutStrLn stderr)
+                hPutStrLn stderr
+                    "Use -h, -? or --help to see valid commane line options."
+                exitFailure
 
 maybeAddDefaultOptions :: [StartupOption] -> [StartupOption]
 maybeAddDefaultOptions options
@@ -228,11 +226,11 @@ run options
 
         forM_ websocket_ports $ \(Websocket port) ->
                                    forkExceptionTaggedIO "playing-websocket" $
-                                       runWebSocket port storage
+                                       runWebSocket "0.0.0.0" port storage
 
         forM_ websocket_http_ports $ \(WebsocketHTTP port) ->
                                         forkExceptionTaggedIO "playing-http" $
-                                            runWebsocketHTTP
+                                            runWebSocketHTTP
                                                      port
                                                      (fmap unwrap_websocket
                                                            websocket_ports)

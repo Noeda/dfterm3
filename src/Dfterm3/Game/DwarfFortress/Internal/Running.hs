@@ -12,6 +12,7 @@ module Dfterm3.Game.DwarfFortress.Internal.Running
     , unregister )
     where
 
+import Dfterm3.Prelude
 import Data.Word
 import Data.IORef
 import Data.Maybe ( catMaybes )

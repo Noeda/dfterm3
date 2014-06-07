@@ -9,6 +9,7 @@ module Dfterm3.Dfterm3State
     , Storage() )
     where
 
+import Dfterm3.Prelude
 import Dfterm3.Dfterm3State.Internal.Transactions()
 import Dfterm3.GameSubscription.Internal.Types
 import Dfterm3.Admin.Internal.Types

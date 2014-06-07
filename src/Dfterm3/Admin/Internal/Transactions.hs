@@ -7,6 +7,7 @@ module Dfterm3.Admin.Internal.Transactions
     , invalidateSessionID )
     where
 
+import Dfterm3.Prelude
 import Dfterm3.Dfterm3State.Internal.Types
 import Dfterm3.Admin.Internal.Types
 import Dfterm3.Util ( whenJust )

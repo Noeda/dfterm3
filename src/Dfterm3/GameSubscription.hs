@@ -61,6 +61,7 @@ module Dfterm3.GameSubscription
     , lookForPublishedGames )
     where
 
+import Dfterm3.Prelude
 import Dfterm3.Dfterm3State ( Storage )
 import Dfterm3.Dfterm3State.Internal.Transactions
 import Dfterm3.GameSubscription.Internal.Types
@@ -72,15 +73,13 @@ import Data.Typeable ( Typeable )
 import Data.Acid
 import Data.Serialize.Put
 import Data.Serialize.Get
-import Data.IORef
-import Data.Foldable ( forM_ )
 import qualified Data.Text as T
 import qualified Data.ByteString as B
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import System.Random ( randomRIO )
 import Control.Lens
-import Control.Monad.Reader hiding ( forM_ )
+import Control.Monad.Reader hiding ( forM_, sequence_ )
 import Control.Concurrent.STM
 import Control.Concurrent.MVar
 import Control.Concurrent ( forkIO )
@@ -208,28 +207,29 @@ procureInstance game storage = do
                         liftIO $ void $ forkIO $ stopInstance ginst
                         return Nothing
                     Nothing -> do
-                    _1 . runningInstances %= M.insert instance_key
-                                   (AnyGameInstance
-                                       stopper
-                                       stopper_informer)
-                    rigamekey %= M.insertWith S.union game_key
-                                                      (S.singleton
-                                                       (uniqueInstanceKey
-                                                        ginst))
+                        _1 . runningInstances %= M.insert instance_key
+                                    (AnyGameInstance
+                                        stopper
+                                        stopper_informer)
+                        rigamekey %= M.insertWith S.union game_key
+                                                        (S.singleton
+                                                        (uniqueInstanceKey
+                                                            ginst))
 
-                    let game_instance =
-                         GameInstance { _gameInstance = ginst
-                                      , _gameKey = game_key
-                                      , _onlineUsers = online_users_ref
-                                      , _inputsInstanceChannel = inputs_chan
-                                      , _outputsInstanceChannel = outputs_chan
-                                      , _chatBroadcastChannel = chat_chan
-                                      , _subscribeLock = subscribeLock }
+                        let game_instance =
+                              GameInstance
+                                        { _gameInstance = ginst
+                                        , _gameKey = game_key
+                                        , _onlineUsers = online_users_ref
+                                        , _inputsInstanceChannel = inputs_chan
+                                        , _outputsInstanceChannel = outputs_chan
+                                        , _chatBroadcastChannel = chat_chan
+                                        , _subscribeLock = subscribeLock }
 
-                    liftIO $ void $ forkIO $
-                        finally (callback game_instance) $
-                            atomically $ writeTChan outputs_chan Nothing
-                    return $ Just game_instance
+                        liftIO $ void $ forkIO $
+                            finally (callback game_instance) $
+                                atomically $ writeTChan outputs_chan Nothing
+                        return $ Just game_instance
   where
     game_key = uniqueKey game
 

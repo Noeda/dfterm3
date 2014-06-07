@@ -6,16 +6,15 @@ module Dfterm3.GameSubscription.Internal.SubscriptionIO
     , useAcidState )
     where
 
+import Dfterm3.Prelude
 import Dfterm3.GameSubscription.Internal.Types
 import Dfterm3.Dfterm3State.Internal.Types
 
-import Data.IORef
 import Data.Acid
 import Data.Typeable ( Typeable )
 import Control.Lens
 import Control.Concurrent.MVar
 import Control.Monad.State
-import Control.Applicative
 
 -- | Actions that require reading or changing values on the disk live in the
 -- `SubscriptionIO` monad.

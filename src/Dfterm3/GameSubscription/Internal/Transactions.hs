@@ -9,6 +9,7 @@ module Dfterm3.GameSubscription.Internal.Transactions
     )
     where
 
+import Dfterm3.Prelude
 import Dfterm3.Dfterm3State.Internal.Types
 import Dfterm3.GameSubscription.Internal.Types
 import Control.Lens

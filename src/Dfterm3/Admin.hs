@@ -18,6 +18,7 @@ module Dfterm3.Admin
     , changePassword )
     where
 
+import Dfterm3.Prelude
 import Dfterm3.Admin.Internal.Types
 import Dfterm3.Dfterm3State.Internal.Types
 import Dfterm3.Dfterm3State.Internal.Transactions
@@ -86,7 +87,9 @@ setAdminPassword :: Maybe B.ByteString
 setAdminPassword password (readPersistentStorage -> ps) = do
     encrypted_password <- case password of
         Nothing -> return AlwaysDenied
-        Just  p -> Password `fmap` encryptPass' (Pass p)
+        Just  p -> Password <$> do
+            salt <- newSalt
+            return $ encryptPass' salt (Pass p)
     update ps (SetEncryptedAdminPassword encrypted_password)
 
 changePassword :: B.ByteString
@@ -94,7 +97,7 @@ changePassword :: B.ByteString
                -> Storage
                -> IO Bool
 changePassword old_password new_password (readPersistentStorage -> ps) = do
-    encrypted_pass <- encryptPass' (Pass new_password)
+    encrypted_pass <- encryptPassIO' (Pass new_password)
     update ps (ChangePassword old_password (Password encrypted_pass))
 
 invalidateSessionID :: SessionID -> Storage -> IO ()

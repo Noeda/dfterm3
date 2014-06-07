@@ -6,6 +6,7 @@ module Dfterm3.CP437ToUnicode
     , unicodeToCP437 )
     where
 
+import Dfterm3.Prelude
 import Data.Word ( Word8 )
 import Data.Char ( chr )
 

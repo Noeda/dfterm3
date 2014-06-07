@@ -8,6 +8,7 @@ module Dfterm3.AdminPanel
     ( runAdminPanel )
     where
 
+import Dfterm3.Prelude
 import Dfterm3.Admin
 import Dfterm3.Dfterm3State
 import Dfterm3.GameSubscription
@@ -15,12 +16,8 @@ import Dfterm3.Logging
 
 import Dfterm3.Game.DwarfFortress
 
-import Control.Applicative
 import Control.Lens
-import Control.Monad
 import Control.Monad.IO.Class ( liftIO )
-import Data.Typeable ( Typeable )
-import Data.Word
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as BU
