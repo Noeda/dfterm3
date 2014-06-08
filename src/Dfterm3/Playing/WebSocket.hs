@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Dfterm3.Playing.WebSocket
     ( runWebSocket
     , runWebSocketHTTP )
@@ -8,17 +6,16 @@ module Dfterm3.Playing.WebSocket
 import Dfterm3.Prelude
 import Dfterm3.Dfterm3State
 import Dfterm3.Logging
-import Dfterm3.Game.DwarfFortress
+import Dfterm3.Playing.Common
 
-import GHC.Generics
 import Network.Simple.TCP hiding ( listen )
 import Data.Aeson
 import Network.WebSockets
 import Network.WebSockets.Connection
 import Control.Exception
+import Control.Concurrent
 import Data.ByteString.Internal ( c2w )
 import qualified Data.ByteString as B
-import qualified Data.Text as T
 import qualified System.IO.Streams.Attoparsec as ST
 import qualified System.IO.Streams.Network as ST
 import qualified System.IO.Streams.Builder as ST
@@ -28,10 +25,8 @@ import qualified Happstack.Server as H
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.UTF8 as BU
 
-type Logger = String -> IO ()
-
 runWebSocket :: String -> Word16 -> Storage -> IO ()
-runWebSocket hostname port _ = serve (Host hostname) (show port) $ \(s, saddr) -> do
+runWebSocket hostname port ps = serve (Host hostname) (show port) $ \(s, saddr) -> do
     -- ol == our logger
     let ol txt = logInfo $ "(<WS> " <> show saddr <> ") " <> txt
 
@@ -52,14 +47,22 @@ runWebSocket hostname port _ = serve (Host hostname) (show port) $ \(s, saddr) -
         conn <- acceptRequest pc
         ol "Handshook."
 
-        jsonLoop ol conn
+        -- I don't know if using an MVar lock is really necessary but I'll do
+        -- it just in case.
+        send_lock <- newMVar ()
 
-jsonLoop :: Logger -> Connection -> IO ()
-jsonLoop ol conn = forever $ do
-    msg <- unwrapAny <$> receiveDataMessage conn
-    case decode msg :: Maybe CTSMessage of
-        Nothing -> ol "Malformed or invalid JSON message."
-        Just _ -> return ()
+        let sender stcmsg = withMVar send_lock $ \_ ->
+                            sendTextData conn $
+                            encode stcmsg
+            receiver = do
+                msg <- unwrapAny <$> receiveDataMessage conn
+                case decode msg :: Maybe CTSMessage of
+                    Nothing -> ol "Malformed or invalid JSON message." >>
+                               receiver
+                    Just decoded -> return decoded
+
+        mytid <- myThreadId
+        runPlayingSession sender receiver (killThread mytid) ps
   where
     unwrapAny (Text bs) = bs
     unwrapAny (Binary bs) = bs
@@ -85,16 +88,6 @@ decodeHeaderLine = (,)
     <*  A.option (c2w ' ') (A.word8 (c2w ' '))
     <*> A.takeWhile (/= c2w '\r')
     <*  A.string "\r\n"
-
-data CTSMessage =
-    Unsubscribe
-  | Chat !T.Text
-  | DoInput !KeyDirection !Input
-  | Subscribe !Int
-  deriving ( Eq, Ord, Show, Read, Typeable, Generic )
-
-instance FromJSON CTSMessage
-instance ToJSON CTSMessage
 
 -- | Starts the HTTP service. Does not return so you might want to wrap it
 -- inside `forkIO`.

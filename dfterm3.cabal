@@ -33,6 +33,7 @@ library
                        Dfterm3.AdminPanel
                        Dfterm3.Admin
                        Dfterm3.Playing.WebSocket
+                       Dfterm3.Playing.Common
                        Dfterm3.Prelude
                        Dfterm3.Util
   other-modules:       Dfterm3.GameSubscription.Internal.Transactions
