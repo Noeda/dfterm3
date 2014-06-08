@@ -6,4 +6,6 @@ dfterm3
 node_modules/
 cabal.sandbox.config
 lintings
+web/out/bundle.js
+web/node_modules/
 
