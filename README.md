@@ -5,17 +5,22 @@ This is a remote Dwarf Fortress playing software. It quite unfinished but it
 somewhat works. You can play and chat while enjoying Dwarves killing
 themselves.
 
-The "official" site for Dfterm3 is just a forum thread in the bay12 forums:
+The main discussion forum is a thread in the Bay12 forums:
 
 <http://www.bay12forums.com/smf/index.php?topic=129995.90>.
 
 Overview
 --------
 
-Dfterm3 as a software has two parts. One part is the Dfterm3 server and the
-other is a Dfhack Dfterm3 plugin\[1\] (which currently works only on modified
-Dfhack\[2\]). The Dfterm3 server acts as a HTTP and WebSocket server that
-together implement a web interface for playing Dwarf Fortress. The Dfhack
+Dwarf Fortress is a single player game that's installed on your computer. This
+software takes Dwarf Fortress and puts its output on the web browser. Now Dwarf
+Fortress is still running on your computer but you can access and play it over
+the web.
+
+As a software, Dfterm3 as a has two parts. One part is the Dfterm3 server and
+the other is a Dfhack Dfterm3 plugin\[1\] (which currently works only on
+modified Dfhack\[2\]). The Dfterm3 server acts as a HTTP and WebSocket server
+that together implement a web interface for playing Dwarf Fortress. The Dfhack
 Dfterm3 plugin runs with Dfhack in the Dwarf Fortress process and talks with
 the Dfterm3 server to manage screen data and input from the web interface to
 Dwarf Fortress.
@@ -24,23 +29,22 @@ Dwarf Fortress.
 
 [2] <https://github.com/Noeda/dfhack>
 
-Installation instructions for Linux
--------------------------------------
+Installation instructions for Linux and Unixy environments
+----------------------------------------------------------
 
-First, get yourself the Glasgow Haskell Compiler. Its name is usually "ghc" in
-Linux distributions. Make sure you get GHC version 7.6.3. Many distributions
-have a GHC from the 7.4.x series and that one is no good. The latest Haskell
-Platform (2013.2.0.0) uses the correct GHC and you might want to grab its
-binaries if you can't get the required software from your Linux distribution.
+(Note that Linux version has problems with very high CPU usage).
 
-Next, get yourself the Dfterm3 source code:
+As for prerequisites, install GHC, version 7.8.2. It may work on 7.6.3 but I
+have not tested this with the current incarnation of the code. You also need
+cabal-install but it probably comes with the GHC. Also install node and have
+npm in path.
+
+Get the code:
 
     $ git clone https://github.com/Noeda/dfterm3.git
     $ cd dfterm3
-    $ git submodule init
-    $ git submodule update
 
-Now, install all the dependencies:
+Now, install all the Haskell dependencies:
 
     $ cabal install --only-dependencies
 
@@ -51,10 +55,7 @@ development libraries to be installed. Next, configure and build dfterm3.
     $ cabal build
 
 If everything worked, you will end up with a dfterm3 binary in
-`./dist/build/dfterm3/dfterm3`. You can copy this binary to somewhere reachable
-from `PATH` or whatever you want. Whatever you do, this binary should be run so
-that the working directory contains `web-interface` directory. For example, if
-you want to run it directly from the source directory, you could just do:
+`./dist/build/dfterm3/dfterm3`.
 
     $ ln -s ./dist/build/dfterm3/dfterm3 ./
     $ ./dfterm3 --admin-password
@@ -65,14 +66,18 @@ administrator password yet. You need the administrator panel to configure your
 Dwarf Fortresses. For the command I presented above, the administrator panel
 can be accessed from <http://127.0.0.1:8081/admin/>.
 
-Now, to configure Dwarf Fortresses, you need Dfhack that has a Dfterm3 plugin
-included. I have put the source code at <https://github.com/Noeda/dfhack.git>.
-Refer to Dfhack on how to compile and install this. The important thing is that
-you end up with a `dfhack` script in the root of the Dwarf Fortress
-installation.
+How to make Dwarf Fortresses available in Dfterm3
+-------------------------------------------------
 
-Start up a Dwarf Fortress normally and then, in the dfhack command line, write
-the following command:
+If you have the binary Dfterm3 DFHack plugin, install that to Dwarf
+Fortress that already has DFHack installed (the plugin usually goes under
+hack/plugins directory in Dwarf Fortress).
+
+Compiling the plugin from source is a bit non-straightforward at the moment but
+the plugin code is at <https://github.com/Noeda/dfterm3-plugin>.
+
+Assuming that you have successfully installed the plugin, the following command
+should be available in the DFHack console:
 
     [DFHack] # start-dfterm3
 
@@ -91,7 +96,7 @@ File hierarchy
 
     src/              Haskell source code
     main/             Haskell source code for `main` function.
-    web-interface/    HTML, JavaScript and other client-side files needed for
+    web/              HTML, JavaScript and other client-side files needed for
                       the web interface.
-
+    ico/              Dfterm3 icons.
 
