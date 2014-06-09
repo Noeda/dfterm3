@@ -90,6 +90,14 @@ at your computer at the port you gave in `--websocket-http`. For example, if
 your IP-address is "1.2.3.4", then the address would be
 <http://1.2.3.4:8080/> (remember the last slash '/').
 
+Make sure that, in Dwarf Fortress configuration, you have
+
+  * Disabled TrueType fonts
+
+  * PRINT_MODE is not TEXT (this mode makes Dfterm3 even less well on Linux)
+
+If you have tilesets turned on, it may affect output on the web screen,
+however, tilesets are not supported in the web interface.
 
 File hierarchy
 --------------
