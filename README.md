@@ -99,6 +99,25 @@ Make sure that, in Dwarf Fortress configuration, you have
 If you have tilesets turned on, it may affect output on the web screen,
 however, tilesets are not supported in the web interface.
 
+Hacking with the web code
+-------------------------
+
+The default client-side web code is implemented in the web/ directory. You can
+compile (that is, bundle and optimize the JavaScript code) by going there and
+typing 'make':
+
+    $ cd web
+
+    # Install dependencies if you need to
+    $ npm install browserify
+    $ npm install uglify-js
+    $ npm install underscore
+
+    $ make
+
+You need node.js installed to do this. The compiled bundle.js ends up in
+web/out/ directory.
+
 File hierarchy
 --------------
 
