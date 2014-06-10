@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Dfterm3.Playing.WebSocket
     ( runWebSocket
     , runWebSocketHTTP )
@@ -16,9 +18,8 @@ import Control.Exception
 import Control.Concurrent
 import Data.ByteString.Internal ( c2w )
 import qualified Data.ByteString as B
+import qualified System.IO.Streams as ST
 import qualified System.IO.Streams.Attoparsec as ST
-import qualified System.IO.Streams.Network as ST
-import qualified System.IO.Streams.Builder as ST
 import qualified Data.CaseInsensitive as CI
 import qualified Data.Attoparsec as A
 import qualified Happstack.Server as H
@@ -36,12 +37,34 @@ runWebSocket hostname port ps = serve (Host hostname) (show port) $ \(s, saddr) 
         (sin, sout) <- ST.socketToStreams s
         bout <- ST.builderStream sout
 
+        -- this safe_sin thing is to prevent DoS attacks by sending some
+        -- veeeeery large byte string. We keep track how many bytes have been
+        -- received that have no yet been handled by the websockets package and
+        -- if it crosses the line, cut the connection.
+        received_unhandled <- newIORef 0
+        end_ref <- newIORef False
+
+        safe_sin <- ST.makeInputStream $ do
+                x <- readIORef end_ref
+                if x
+                  then ST.read sin >>= \case
+                        Nothing -> return Nothing
+                        Just x -> do
+                            len <- atomicModifyIORef'
+                                   received_unhandled $ \old ->
+                                ( old+B.length x, old+B.length x )
+                            if (len > 1000000)
+                            then writeIORef end_ref True >>
+                                return Nothing
+                            else return $ Just x
+                  else return Nothing
+
         request <- ST.parseFromStream (decodeRequestHead False) sin
         let pc = PendingConnection
                  { pendingOptions = defaultConnectionOptions
                  , pendingRequest = request
                  , pendingOnAccept = \_ -> return ()
-                 , pendingIn = sin
+                 , pendingIn = safe_sin
                  , pendingOut = bout }
 
         conn <- acceptRequest pc
@@ -56,6 +79,7 @@ runWebSocket hostname port ps = serve (Host hostname) (show port) $ \(s, saddr) 
                             encode stcmsg
             receiver = do
                 msg <- unwrapAny <$> receiveDataMessage conn
+                writeIORef received_unhandled 0
                 case decode msg :: Maybe CTSMessage of
                     Nothing -> ol "Malformed or invalid JSON message." >>
                                receiver
