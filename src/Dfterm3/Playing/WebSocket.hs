@@ -46,7 +46,7 @@ runWebSocket hostname port ps = serve (Host hostname) (show port) $ \(s, saddr) 
 
         safe_sin <- ST.makeInputStream $ do
                 x <- readIORef end_ref
-                if x
+                if not x
                   then ST.read sin >>= \case
                         Nothing -> return Nothing
                         Just x -> do
