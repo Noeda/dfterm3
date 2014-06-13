@@ -139,8 +139,8 @@ runPlayingSession sender receiver killer ps = do
                                 }
   where
     session = runSession $ do
-        -- if handshake is not complete within 10 seconds, cut the connection.
-        timeoutOrDie 10000000 handshake
+        -- if handshake is not complete within 60 seconds, cut the connection.
+        timeoutOrDie 60000000 handshake
         nonGameLoop
 
 nonGameLoop :: Session ()
