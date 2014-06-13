@@ -54,9 +54,9 @@ runWebSocket hostname port ps = serve (Host hostname) (show port) $ \(s, saddr) 
                                    received_unhandled $ \old ->
                                 ( old+B.length x, old+B.length x )
                             if (len > 1000000)
-                            then writeIORef end_ref True >>
-                                return Nothing
-                            else return $ Just x
+                                then writeIORef end_ref True >>
+                                     return Nothing
+                                else return $ Just x
                   else return Nothing
 
         request <- ST.parseFromStream (decodeRequestHead False) sin
