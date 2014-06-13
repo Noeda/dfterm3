@@ -15,12 +15,11 @@
  *
  * Create an object to handle the protocol:
  *
- * var d3 = d3module.makeDfterm3Connection( 'Nostrils', sender_function );
+ * var d3 = d3module.makeDfterm3Connection( sender_function );
  *
  * You probably want to use the WebSocket aware function though:
  *
- * var d3 = d3module.makeWebSocketDfterm3Connection( 'Nostrils'
- *                                                 , 'ws://somewhere:8000' );
+ * var d3 = d3module.makeWebSocketDfterm3Connection( 'ws://somewhere:8000' );
  *
  * If you use the former function, then 'sender_function' should be a function
  * that takes one argument. It should serialize the argument to JSON and send
@@ -32,10 +31,8 @@
  * var json = <get this from some of your network code>
  * d3.handle( json );
  *
- * By default, when you create the d3 object, the sender_function is
- * immediately called with the given name, in an attempt to authenticate to
- * Dfterm3. If this fails, the appropriate event handler function is called
- * (see below).
+ * You need to authenticate to the Dfterm3 server with d3.authenticate after
+ * making a connection.
  *
  * If you use the WebSocket creator function then you don't have to handle any
  * of that above; it's all done for you.
@@ -45,6 +42,9 @@
  * d3.onConnectionLost = function(d3)     When connecting fails or is
  *                                        disconnected. Only used if you used
  *                                        'makeWebSocketDfterm3Connection'.
+ * d3.onConnectionEstablished = function(d3)
+ *                                        When a connection has been
+ *                                        successfully established.
  * d3.onLogin = function(d3)                 Called when login is successful.
  * d3.onLoginFailure = function(d3)          Called when login fails.
  * d3.onSubscribe = function(d3)             Called when subscribing to a game
@@ -91,6 +91,11 @@
  *
  * These are all the various actions you can do with d3:
  *
+ * d3.status()                                Returns current status of d3:
+ *                                            'idle'        Logged in but not
+ *                                                          watching anything
+ *                                            'subscribed'  Watching a game
+ *                                            'handshaking' Not logged in yet.
  * d3.requestGamesList(callback)              Request a list of playable games.
  *                                            The callback is called the same
  *                                            way as 'onGamesList' (see above).
@@ -159,13 +164,18 @@
 
 var _ = require('underscore');
 
-exports.makeWebSocketDfterm3Connection = function( name, url )
+exports.makeWebSocketDfterm3Connection = function( url )
 {
     var ws = new WebSocket( url );
     var sender = function( encode_me ) {
         ws.send( JSON.stringify(encode_me) );
     };
-    var d3 = exports.makeDfterm3Connection( name, sender );
+    var d3 = exports.makeDfterm3Connection( sender );
+    ws.onopen = function() {
+        if ( d3.onConnectionEstablished ) {
+            d3.onConnectionEstablished( d3 );
+        }
+    }
     ws.onclose = function() {
         if ( d3.onConnectionLost ) {
             d3.onConnectionLost( d3 );
@@ -177,16 +187,15 @@ exports.makeWebSocketDfterm3Connection = function( name, url )
         }
     }
     ws.onmessage = function(event) {
+        console.log(event.data);
         var decoded = JSON.parse(event.data);
         d3.handle(decoded);
     }
     return d3;
 }
 
-exports.makeDfterm3Connection = function( name
-                                        , sender )
+exports.makeDfterm3Connection = function( sender )
 {
-    var my_name;    // the current nickname in Dfterm3
     var connection_status = 'handshaking';
     // ^ current status of the connection
     var ob = { }
@@ -247,6 +256,10 @@ exports.makeDfterm3Connection = function( name
     var pending_rgl_callbacks = [ ];  // requestGamesList
     var pending_subscribe_callbacks = [ ];
     var pending_auth_callbacks = [ ];
+
+    ob.status = function () {
+        return connection_status;
+    }
 
     ob.authenticate = function( name, callback ) {
         sender( { tag: 'Authenticate'
@@ -404,10 +417,6 @@ exports.makeDfterm3Connection = function( name
             // unknown message...
         }
     }
-
-    // start right away by trying to handshake
-    sender( { tag: 'Authenticate'
-            , name: name } );
 
     return ob;
 }
