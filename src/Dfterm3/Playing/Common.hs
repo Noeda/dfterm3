@@ -12,6 +12,7 @@ import Dfterm3.Game.TextGame
 import Dfterm3.CP437ToUnicode
 import Dfterm3.Terminal
 import Dfterm3.Storage
+import Dfterm3.Logging
 import Dfterm3.Game
 import Dfterm3.Game.DwarfFortress
 import qualified Dfterm3.Chat as GS
@@ -27,7 +28,7 @@ import Control.Exception
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict hiding ( put, get )
 import Control.Monad.RWS.Class
-import Control.Monad.RWS.Strict hiding ( forM_ )
+import Control.Monad.RWS.Strict hiding ( forM_, (<>) )
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.Text as T
@@ -311,14 +312,23 @@ handshake =
     recv >>= \case
         Authenticate {..} -> do
             st <- storage <$> ask
-            muserinstance <- liftIO $ case password of
-                Nothing -> loginNonPersistentUser name st
-                Just password' -> loginUser name password' st
-            case muserinstance of
-                Nothing -> send LoginFailed >> handshake
-                Just userinstance -> do
-                    user .= Just userinstance
-                    send LoginSuccessful
+            if T.length name > 50
+              then send LoginFailed >> handshake
+              else do
+                muserinstance <- liftIO $ case password of
+                    Nothing -> loginNonPersistentUser name st
+                    Just password' -> loginUser name password' st
+                case muserinstance of
+                    Nothing -> send LoginFailed >> handshake
+                    Just userinstance -> do
+                        liftIO $ logInfo $ "User with the name " <> show name <>
+                                           " has logged in." <>
+                                           if isNothing password
+                                             then " (non-persistent)"
+                                             else ""
+
+                        user .= Just userinstance
+                        send LoginSuccessful
         _ -> handshake
 
 putScreenDataPrefix :: Int -> Int -> Int -> Put
