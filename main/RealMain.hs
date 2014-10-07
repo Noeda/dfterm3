@@ -7,15 +7,9 @@ import ConfiguredDefaults
 import Dfterm3.Prelude hiding ( Option )
 import Dfterm3.Game.DwarfFortress
 import Dfterm3.Logging
-import Dfterm3.Dfterm3State
 import Dfterm3.Playing.WebSocket
 import Dfterm3.Util
-
-import Dfterm3.AdminPanel
-import qualified Dfterm3.Admin as A
-
-import qualified Data.Text.Encoding as T
-import qualified Data.Text as T
+import Dfterm3.Storage
 
 import System.Environment ( getArgs )
 import System.Console.GetOpt
@@ -39,11 +33,9 @@ withOpenSSL = id
 #endif
 
 data StartupOption = Websocket !Word16
-                   | AdminPanel !Word16
                    | ShowHelp
                    | StorageLocation FilePath
                    | Daemonize (Maybe FilePath)
-                   | SetAdminPassword
                    | WebsocketHTTP !Word16
                    | UseSyslog
                    | DontUseDefaultPorts
@@ -70,12 +62,6 @@ options = [ Option "w" ["websocket"]
             (NoArg UseSyslog)
             "use syslog for logging."
 #endif
-          , Option [] ["admin-password"]
-            (NoArg SetAdminPassword)
-            "ask for the administrator password and exit."
-          , Option [] ["admin-panel"]
-            (ReqArg (AdminPanel . read) "PORT")
-            "serve administrator panel as a web interface on this port."
           , Option [] ["websocket-http"]
             (ReqArg (WebsocketHTTP . read) "PORT")
             ("serve websocket playing interface as a web interface "
@@ -88,10 +74,6 @@ isStorageOption _ = False
 isDaemonizeOption :: StartupOption -> Bool
 isDaemonizeOption (Daemonize _) = True
 isDaemonizeOption _ = False
-
-isAdminPanelOption :: StartupOption -> Bool
-isAdminPanelOption (AdminPanel _) = True
-isAdminPanelOption _ = False
 
 isWebsocketPortOption :: StartupOption -> Bool
 isWebsocketPortOption (Websocket _) = True
@@ -124,7 +106,7 @@ main = exceptionTaggedIO "main" $ do
 maybeAddDefaultOptions :: [StartupOption] -> [StartupOption]
 maybeAddDefaultOptions options
     | DontUseDefaultPorts `notElem` options =
-          options ++ [Websocket 8000, AdminPanel 8081, WebsocketHTTP 8080]
+          options ++ [Websocket 8000, WebsocketHTTP 8080]
     | otherwise = options
 
 run :: [StartupOption] -> IO ()
@@ -140,11 +122,6 @@ run options
             stderr
             "Only one or zero daemonizing options must be specified."
         exitFailure
-    | should_daemonize && should_set_admin_password = do
-        hPutStrLn
-            stderr
-            "Cannot daemonize and set administrator password at the same time."
-        exitFailure
 #ifndef WINDOWS
     | should_daemonize = do
         let Daemonize maybe_filepath = head $ filter isDaemonizeOption options
@@ -155,12 +132,10 @@ run options
 #endif
     | otherwise = withSocketsDo run'
   where
-    admin_panels = filter isAdminPanelOption options
     websocket_ports = filter isWebsocketPortOption options
     websocket_http_ports = filter isWebsocketHTTPOption options
 
     should_daemonize = any isDaemonizeOption options
-    should_set_admin_password = SetAdminPassword `elem` options
     use_syslog = UseSyslog `elem` options
 
     specified_storage =
@@ -184,30 +159,12 @@ run options
 
         -- Open up storage
         storage_directory <- specified_storage
-        logInfo $ "Using '" ++ storage_directory ++ "' as storage directory."
-        storage <- openStorage storage_directory
-
-        when should_set_admin_password $ do
-            setAdminPassword storage
-            exitSuccess
+        logInfo $ "Using a memory (non-persistent) storage."
+        --logInfo $ "Using '" ++ storage_directory ++ "' as storage directory."
+        --storage <- openStorage storage_directory
+        storage <- newMemoryStorage
 
         monitorDwarfFortresses
-
-        forM_ admin_panels $ \(AdminPanel port) ->
-                                forkExceptionTaggedIO "admin-panel-http" $
-                                    runAdminPanel port
-                                                  storage
-
-        threadDelay 500000
-
-        -- Print out instructions for dummies. Just don't tell them they are dummies.
-        unless (null admin_panels) $ do
-            putStrLn ""
-            putStrLn "Use any of the following URIs to access the administrator panel:"
-            putStrLn ""
-            forM_ admin_panels $ \(AdminPanel port) ->
-                putStrLn $ "http://127.0.0.1:" ++ show port ++ "/admin/"
-            putStrLn ""
 
         unless (null websocket_http_ports) $ do
             putStrLn ""
@@ -268,27 +225,4 @@ showHelp = do
                ++ "WebSockets HTTP at port 8080 and administrator panel at "
                ++ "port 8081. If you pass --no-default-ports, then none of "
                ++ "these ports are opened unless you explicitly set them."
-
-setAdminPassword :: Storage -> IO ()
-setAdminPassword ps = do
-    putStr "New password (not echoed): "
-    hFlush stdout
-    old_echo <- hGetEcho stdin
-    hSetEcho stdin False
-    line <- getLine
-    hSetEcho stdin old_echo
-    putStrLn ""
-    if null line
-      then do putStrLn "Disable administrator? (y/n)"
-              disabling <- getLine
-              case disabling of
-                  "y"   -> A.setAdminPassword Nothing ps
-                  "yes" -> A.setAdminPassword Nothing ps
-                  _ -> do putStrLn "Allow access without authentication? (y/n)"
-                          no_auth <- getLine
-                          case no_auth of
-                              "y"   -> A.setNoAuthentication' ps
-                              "yes" -> A.setNoAuthentication' ps
-                              _ -> putStrLn "Doing nothing."
-      else A.setAdminPassword (Just $ T.encodeUtf8 $ T.pack line) ps
 

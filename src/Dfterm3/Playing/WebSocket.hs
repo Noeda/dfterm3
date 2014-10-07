@@ -6,9 +6,9 @@ module Dfterm3.Playing.WebSocket
     where
 
 import Dfterm3.Prelude
-import Dfterm3.Dfterm3State
 import Dfterm3.Logging
 import Dfterm3.Playing.Common
+import Dfterm3.Storage
 
 import Network.Simple.TCP hiding ( listen )
 import Data.Aeson
@@ -21,7 +21,7 @@ import qualified Data.ByteString as B
 import qualified System.IO.Streams as ST
 import qualified System.IO.Streams.Attoparsec as ST
 import qualified Data.CaseInsensitive as CI
-import qualified Data.Attoparsec as A
+import qualified Data.Attoparsec.ByteString as A
 import qualified Happstack.Server as H
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.UTF8 as BU

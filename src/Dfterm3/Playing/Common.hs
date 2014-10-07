@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric, LambdaCase, RecordWildCards #-}
+{-# LANGUAGE RankNTypes, ImpredicativeTypes #-}
 
 module Dfterm3.Playing.Common
     ( STCMessage()
@@ -7,21 +8,23 @@ module Dfterm3.Playing.Common
     where
 
 import Dfterm3.Prelude
-import Dfterm3.User
-import Dfterm3.Dfterm3State.Internal.Types
-import Dfterm3.Game.DwarfFortress
-import Dfterm3.GameSubscription hiding ( Joined, Parted )
+import Dfterm3.Game.TextGame
 import Dfterm3.CP437ToUnicode
-import qualified Dfterm3.GameSubscription as GS
 import Dfterm3.Terminal
+import Dfterm3.Storage
+import Dfterm3.Game
+import Dfterm3.Game.DwarfFortress
+import qualified Dfterm3.Chat as GS
 import Data.Bits
 import Data.Array.IArray ( assocs, bounds )
 import Data.Aeson hiding ( (.=) )
 import Data.Serialize.Put
 import GHC.Generics
+import Control.Concurrent.STM
 import Control.Monad.IO.Class
 import Control.Lens
 import Control.Exception
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict hiding ( put, get )
 import Control.Monad.RWS.Class
 import Control.Monad.RWS.Strict hiding ( forM_ )
@@ -40,7 +43,8 @@ data CTSMessage =
   | DoInput !KeyDirection !Input
   | Subscribe !Int
   | ListGames
-  | Authenticate { name :: T.Text }
+  | Authenticate { name :: T.Text
+                 , password :: (Maybe T.Text) }
   deriving ( Eq, Ord, Show, Read, Typeable, Generic )
 
 data STCMessage = LoginSuccessful
@@ -72,13 +76,17 @@ data SessionEnv = SessionEnv
     , receiver :: IO CTSMessage
     , killer :: IO ()
     , storage :: Storage
-    , aliveThreads :: IORef (S.Set ThreadId)
-    , user :: User }
+    , aliveThreads :: IORef (S.Set ThreadId) }
+
+type TextGameSubscription = GameSubscription
+                            (Either GS.ChatText TextGameInput)
+                            (Either GS.ChatEvent TextGameChangesets)
 
 data SessionVar = SessionVar
-    { _lastSentGames :: IM.IntMap DwarfFortressPersistent
+    { _lastSentGames :: !(IM.IntMap DwarfFortressPersistent)
+    , _user :: !(Maybe UserInstance)
     , _subscriptions :: [ ( ThreadId
-                          , GameSubscription DwarfFortressPersistent) ] }
+                          , TextGameSubscription ) ] }
 makeLenses ''SessionVar
 
 recv :: Session CTSMessage
@@ -121,7 +129,6 @@ runPlayingSession :: (STCMessage -> IO ())
                   -> Storage
                   -> IO ()
 runPlayingSession sender receiver killer ps = do
-    usr <- liftIO $ newGuestUser ps
     alive_threads <- newIORef S.empty
     flip finally (do ts <- readIORef alive_threads
                      for_ ts killThread) $
@@ -130,12 +137,12 @@ runPlayingSession sender receiver killer ps = do
                                 , receiver = receiver
                                 , killer = killer
                                 , storage = ps
-                                , aliveThreads = alive_threads
-                                , user = usr }
+                                , aliveThreads = alive_threads }
                                 SessionVar
                                 {
                                   _lastSentGames = IM.empty
                                 , _subscriptions = []
+                                , _user = Nothing
                                 }
   where
     session = runSession $ do
@@ -162,99 +169,140 @@ nonGameLoop = forever $ recv >>= \case
     Chat msg ->
         use subscriptions >>= \case
             [] -> return ()
-            ((_, sub):_) -> liftIO $ chat sub (T.take 800 msg)
+            ((_, sub):_) -> do
+                liftIO $ atomically $ writeAction (InputAction $ Left $ T.take 800 msg) sub
 
     _ -> return ()
 
-doInput :: GameSubscription DwarfFortressPersistent
+whenLoggedIn :: (T.Text -> Session ()) -> Session ()
+whenLoggedIn action = do
+    musr <- _user <$> get
+    case musr of
+        Nothing -> return ()
+        Just usr -> do
+            alive <- liftIO $ isAliveUser usr
+            when alive $ action (viewName usr)
+
+doInput :: TextGameSubscription
         -> KeyDirection
         -> Input
         -> Session ()
 doInput sub keydir inp = do
-    usr <- user <$> ask
-    whenLoggedIn usr $ \name ->
-        liftIO $ input sub (DwarfFortressInput keydir name inp)
+    whenLoggedIn $ \name ->
+        liftIO $ atomically $
+            writeAction (InputAction $ Right $ MkTextGameInput keydir name inp) sub
 
 subscribeToGame :: Int -> Session ()
-subscribeToGame key = do
-    sent_games <- use lastSentGames
-    ps <- storage <$> ask
-    case IM.lookup key sent_games of
-        Nothing -> send $ CannotSubscribe "Invalid game key."
-        Just persistent -> do
-            maybe_ginstance <- liftIO $ procureInstance persistent ps
-            case maybe_ginstance of
-                Nothing -> send $ CannotSubscribe "Failed to procure a game."
-                Just ginstance -> do
-                    usr <- user <$> ask
-                    whenLoggedIn usr $ \name -> do
-                        maybe_subscription <-
-                            liftIO $ subscribe ginstance name
-                        case maybe_subscription of
-                            Left fail -> send $ CannotSubscribe $ showT fail
-                            Right subscription -> do
-                                send Subscribed
-                                SessionEnv { sender = sender } <- ask
-                                alive <- aliveThreads <$> ask
-                                tid <- liftIO $ mask $ \restore -> do
-                                    tid <- forkIO $
-                                           gameEventHandler restore
-                                                            alive
-                                                            subscription
-                                                            sender
-                                                            Nothing
-                                    atomicModifyIORef_' alive $ S.insert tid
-                                    return tid
-                                subscriptions %= (:) (tid, subscription)
+subscribeToGame key = handle $ do
+    sent_games <- lift $ _lastSentGames <$> get
+    ps <- storage <$> lift ask
+
+    -- The game must be in the list we sent to the client
+    persistent <- case IM.lookup key sent_games of
+        Nothing -> throwE $ CannotSubscribe "Invalid game key."
+        Just p -> return p
+
+    -- We have to properly procure a game instance for the client
+    ginst <- liftIO $ procureTextGameInstance ps persistent
+    ginstance <- case ginst of
+        Failed -> throwE $ CannotSubscribe "Failed to procure a game."
+        Instance ginstance -> return ginstance
+
+    -- Attempt to subscribe the user to the just procured game
+    lift $ whenLoggedIn $ \name -> do
+        maybe_subscription <- liftIO $ subscribeToTextGame ps name ginstance
+        case maybe_subscription of
+            Nothing -> send $ CannotSubscribe $
+                "Cannot subscribe to this game."
+            Just subscription -> do
+                send Subscribed
+                SessionEnv { sender = sender } <- ask
+                alive <- aliveThreads <$> ask
+                tid <- liftIO $ mask $ \restore -> do
+                    tid <- forkIO $
+                            gameEventHandler restore
+                                             alive
+                                             subscription
+                                             sender
+                                             Nothing
+                    atomicModifyIORef_' alive $ S.insert tid
+                    return tid
+                subscriptions %= (:) (tid, subscription)
+  where
+    handle action = do
+        result <- runExceptT action
+        case result of
+            Left exc -> send exc
+            Right r -> return r
+
+data DieSilently = DieSilently
+                   deriving ( Show, Typeable )
+
+catchDieSilently :: IO a -> IO ()
+catchDieSilently action = mask $ \restore -> do
+    result <- try $ restore action
+    case result of
+        Left DieSilently -> return ()
+        _ -> return ()
+
+instance Exception DieSilently
 
 gameEventHandler :: (IO () -> IO ())
                  -> IORef (S.Set ThreadId)
-                 -> GameSubscription DwarfFortressPersistent
+                 -> TextGameSubscription
                  -> (STCMessage -> IO ())
                  -> (Maybe T.Text)
                  -> IO ()
-gameEventHandler restore alive_refs subscription sender last_player = do
-    tid <- myThreadId
-    flip finally (atomicModifyIORef_' alive_refs $ S.delete tid) $ restore $
-        void $ flip execStateT (True, True, last_player) $ loop
+gameEventHandler restore alive_refs subscription sender last_player =
+    catchDieSilently $ do
+        tid <- myThreadId
+        flip finally (atomicModifyIORef_' alive_refs $ S.delete tid) $ restore $
+            void $ execStateT rec (True, last_player)
   where
-    loop = do
-        rec
-        (_, should_continue, _) <- get
-        when should_continue loop
-
     senderI = liftIO . sender
 
-    rec = do
-        event <- liftIO $ waitForEvent subscription
-        case event of
-            InstanceClosed -> senderI GameClosed
+    rec = forever $ do
+        event <- liftIO $ atomically $ do
+            alive <- isSubscriptionAlive subscription
+            if alive
+              then do mevent <- readEvent subscription
+                      case mevent of
+                          Nothing -> retry
+                          Just ev -> return $ Just ev
+              else return Nothing
 
-            ChatEvent (GS.Joined who) -> senderI (Joined who)
-            ChatEvent (GS.Parted who) -> senderI (Parted who)
-            ChatEvent (ChatMessage who msg) -> senderI (Chatted who msg)
+        ev <- case event of
+            Nothing -> senderI GameClosed >> liftIO (throwIO DieSilently)
+            Just ev -> return ev
 
-            GameChangesets (DwarfFortressChangesets terminal
-                                                    changes
-                                                    new_last_player) -> do
+        case ev of
+            Changesets (Left (GS.Joined who)) -> senderI (Joined who)
+            Changesets (Left (GS.Parted who)) -> senderI (Parted who)
+            Changesets (Left (GS.Messaged (GS.ChatMessage who msg))) ->
+                senderI (Chatted who msg)
+
+            Changesets (Right (MkTextGameChangesets
+                               terminal
+                               changes
+                               new_last_player)) -> do
                 when (new_last_player /= last_player) $ do
                     senderI $ PlayerChanged new_last_player
 
-                (first, _, _) <- get
+                (first, _) <- get
                 _1 .= False
-                _3 .= new_last_player
+                _2 .= new_last_player
                 senderI $ GameChangeset $ T.decodeUtf8 $ B64.encode $ if first
                     then encodeStateToBinary terminal
                     else encodeChangesToBinary changes
 
+            GameDied -> senderI GameClosed >> liftIO (throwIO DieSilently)
+
 listGames :: Session ()
 listGames = do
     ps <- storage <$> ask
-    games <- liftIO $
-        runSubscriptionIO ps
-        (lookForPublishedGames :: SubscriptionIO [DwarfFortressPersistent])
-
-    lastSentGames .= (IM.fromList $ zip [0..] games)
+    games <- liftIO $ listPublishedGames ps
+    lastSentGames .= (IM.fromList $
+                      zip [0..] (games :: [DwarfFortressPersistent]))
 
     send $ Games $ zip [0..] (fmap (^.customName) games)
 
@@ -262,12 +310,15 @@ handshake :: Session ()
 handshake =
     recv >>= \case
         Authenticate {..} -> do
-            usr <- Session $ user <$> ask
-            st <- Session $ storage <$> ask
-            x <- liftIO $ loginUser usr name st
-            if x
-              then send LoginSuccessful
-              else send LoginFailed >> handshake
+            st <- storage <$> ask
+            muserinstance <- liftIO $ case password of
+                Nothing -> loginNonPersistentUser name st
+                Just password' -> loginUser name password' st
+            case muserinstance of
+                Nothing -> send LoginFailed >> handshake
+                Just userinstance -> do
+                    user .= Just userinstance
+                    send LoginSuccessful
         _ -> handshake
 
 putScreenDataPrefix :: Int -> Int -> Int -> Put

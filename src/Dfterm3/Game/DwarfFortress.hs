@@ -9,10 +9,6 @@
 module Dfterm3.Game.DwarfFortress
     ( monitorDwarfFortresses
     , DwarfFortressPersistent()
-    , GameInputs( DwarfFortressInput )
-    , GameChangesets( DwarfFortressChangesets )
-    , Input(..)
-    , KeyDirection(..)
     , mkDwarfFortressPersistent
     , executable
     , workingDirectory
@@ -22,8 +18,9 @@ module Dfterm3.Game.DwarfFortress
 
 import Dfterm3.Prelude
 import Dfterm3.Game.DwarfFortress.Internal.Running
+import Dfterm3.Game.TextGame
+import Dfterm3.Game
 
-import Dfterm3.GameSubscription
 import Dfterm3.Util
 import Dfterm3.Logging
 import Dfterm3.Terminal
@@ -31,6 +28,7 @@ import Dfterm3.CP437ToUnicode ( cp437ToUnicode )
 
 import Data.Array.IArray
 import Data.Bits
+import Data.Unique
 
 import System.Random
 import System.IO
@@ -59,8 +57,6 @@ import qualified Data.Text as T
 
 import qualified Data.Serialize.Get as S
 import qualified Data.Serialize.Put as S
-
-import qualified Data.Aeson as J
 
 #ifdef WINDOWS
 import qualified System.Win32.Process as W
@@ -108,20 +104,16 @@ mkDwarfFortressPersistent :: FilePath
 mkDwarfFortressPersistent =
     DwarfFortressPersistent
 
-data KeyDirection = Up | Down | UpAndDown
-                    deriving ( Eq, Ord, Read, Show, Typeable, Generic )
+instance TextGame DwarfFortressPersistent where
+    toTextGameInput (DFInput inp) = inp
+    fromTextGameInput = DFInput
 
-data Input = Input !Int !Word32 !Bool !Bool !Bool
-             deriving ( Eq, Ord, Read, Show, Typeable, Generic )
-
-instance J.FromJSON KeyDirection
-instance J.FromJSON Input
-instance J.ToJSON KeyDirection
-instance J.ToJSON Input
+    toTextGameChangesets (DFChangesets sets) = sets
+    fromTextGameChangesets = DFChangesets
 
 instance PublishableGame DwarfFortressPersistent where
     data GameRawInstance DwarfFortressPersistent =
-        DwarfFortressRunning
+        MkDwarfFortressRunning
         { _pid :: !Word64
         , _handle :: !Socket
         , _executableInstance :: FilePath
@@ -131,15 +123,13 @@ instance PublishableGame DwarfFortressPersistent where
         , _deathChan :: TChan ()
         , _dfVersionInstance :: T.Text
         , _runTid :: ThreadId
-        , _parentInstance ::
-            IORef (Either () (Maybe (GameInstance DwarfFortressPersistent))) }
+        , _uniqueId :: !Unique
+        , _alive :: !(TVar Bool) }
 
     data GameInputs DwarfFortressPersistent =
-        DwarfFortressInput !KeyDirection !T.Text !Input
-
-    data GameChangesets DwarfFortressPersistent =
-        -- keep these lazy
-        DwarfFortressChangesets Terminal TerminalChanges (Maybe T.Text)
+        DFInput TextGameInput
+    data GameChangesets DwarfFortressPersistent = DFChangesets
+        TextGameChangesets
 
     uniqueKey = B8.fromString . _executable
     uniqueInstanceKey = S.runPut . S.putWord64be . _pid
@@ -151,13 +141,13 @@ instance PublishableGame DwarfFortressPersistent where
 
     procureInstance_ = procureDwarfFortress
 
-dfstate :: DFState (GameRawInstance DwarfFortressPersistent)
+dfstate :: DFState (Maybe (GameRawInstance DwarfFortressPersistent))
 dfstate = unsafePerformIO newDFState
 {-# NOINLINE dfstate #-}
 
 lookForDwarfFortresses :: IO [DwarfFortressPersistent]
 lookForDwarfFortresses =
-    fmap toDFP <$> allAliveInstances dfstate
+    fmap toDFP . catMaybes <$> allAliveInstances dfstate
   where
     toDFP ginstance =
         DwarfFortressPersistent
@@ -244,15 +234,19 @@ dfhackConnection handle = do
 
     tid <- myThreadId
     last_player_ref <- newIORef Nothing
+    alive_ref <- newTVarIO True
 
     flip finally (do
-        atomically $ writeTChan death_channel ()
+        atomically $ writeTChan death_channel () >>
+                     writeTVar alive_ref False
         reapPid df_pid
         unregister df_executable_bs dfstate) $ do
-        parent_ref <- newIORef (Left ())
 
-        let running_instance = DwarfFortressRunning
+        uniq <- newUnique
+
+        let running_instance = MkDwarfFortressRunning
                 { _pid = df_pid
+                , _uniqueId = uniq
                 , _handle = handle
                 , _executableInstance =
                     T.unpack df_executable
@@ -263,11 +257,11 @@ dfhackConnection handle = do
                 , _deathChan = death_channel
                 , _dfVersionInstance =
                     df_version
-                , _parentInstance = parent_ref
                 , _runTid = tid
+                , _alive = alive_ref
                 }
 
-        registerNew df_executable_bs dfstate running_instance
+        registerNew df_executable_bs dfstate (Just running_instance)
 
         forkDyingIO (input_processer input_channel handle last_player_ref) $
             rec output_channel
@@ -286,9 +280,10 @@ dfhackConnection handle = do
         input_processer channel handle last_player_ref = forever $ do
             input <- atomically $ readTChan channel
             case input of
-                DwarfFortressInput key_direction
+                DFInput (MkTextGameInput
+                                key_direction
                                 who
-                                (Input code code_point shift alt ctrl) -> do
+                                (Input code code_point shift alt ctrl)) -> do
                     writeIORef last_player_ref (Just who)
                     hSendByteString handle $ B.pack [1] `B.append` S.runPut (do
                         S.putWord32be (fromIntegral code)
@@ -325,7 +320,8 @@ dfhackConnection handle = do
             last_player <- readIORef last_player_ref
 
             atomically $ writeTChan channel
-                                    (DwarfFortressChangesets
+                                    (DFChangesets $
+                                        MkTextGameChangesets
                                         new_terminal
                                         (findChanges terminal new_terminal)
                                         last_player)
@@ -438,37 +434,30 @@ antiIntegerify 0 = False
 antiIntegerify _ = True
 
 procureDwarfFortress :: DwarfFortressPersistent
+                     -> TChan (GameEvent (GameChangesets DwarfFortressPersistent))
+                     -> TChan (GameAction (GameInputs DwarfFortressPersistent))
                      -> IO (Procurement DwarfFortressPersistent)
-procureDwarfFortress df = do
-    mvar_status <- takeOldOrStartProcuring
-                       (B8.fromString $ _executable df)
-                       dfstate
+procureDwarfFortress df event_chan action_chan = mask $ \restore -> do
+    let key = B8.fromString $ _executable df
+    mvar_status <- takeOldOrStartProcuring key dfstate
     case mvar_status of
-        PleaseProcure mvar -> launchDwarfFortress df mvar
+        PleaseProcure mvar ->
+            onException (restore $
+                         launchDwarfFortress df mvar event_chan action_chan)
+                        (unregister key dfstate >>
+                         putMVar mvar Nothing)
         AlreadyProcuring mvar -> do
-            maybe_ginst <- timeout 25000000 $ readMVar mvar
+            maybe_ginst <- restore $ timeout 25000000 $ readMVar mvar
             case maybe_ginst of
-                Nothing    -> return Failed
-                Just ginst -> getParent ginst
-  where
-    getParent ginst = do
-        result <- atomicModifyIORef' (_parentInstance ginst) $ \old ->
-            case old of
-                Left ()       -> ( Right Nothing, Left (0 :: Int))
-                Right Nothing -> ( Right Nothing, Left 1 )
-                Right (Just inst) -> ( Right (Just inst), Right inst )
-
-        case result of
-            Left 0 -> return $ LaunchedNewInstance
-                               ( ginst, procurement ginst )
-            Left 1 -> threadDelay 500000 >> getParent ginst
-            Left _ -> error "Impossible!"
-            Right inst -> return $ ShareWithInstance inst
+                Just (Just ginst) -> return $ Instance ginst
+                _                 -> return Failed
 
 launchDwarfFortress :: DwarfFortressPersistent
-                    -> MVar (GameRawInstance DwarfFortressPersistent)
+                    -> MVar (Maybe (GameRawInstance DwarfFortressPersistent))
+                    -> TChan (GameEvent (GameChangesets DwarfFortressPersistent))
+                    -> TChan (GameAction (GameInputs DwarfFortressPersistent))
                     -> IO (Procurement DwarfFortressPersistent)
-launchDwarfFortress df mvar = do
+launchDwarfFortress df mvar event_chan action_chan = do
 #ifdef WINDOWS
     let stream = Inherit
     rest stream
@@ -505,9 +494,11 @@ launchDwarfFortress df mvar = do
         onException (do
             maybe_ginst <- timeout 25000000 $ readMVar mvar
             case maybe_ginst of
-                Nothing    -> undoProcess phandle >> return Failed
-                Just ginst -> return $ LaunchedNewInstance
-                                    ( ginst, procurement ginst ))
+                Just (Just ginst) -> do
+                    void $ forkIO $ procurement ginst event_chan action_chan
+                    return $ Instance ginst
+                _ -> undoProcess phandle >> return Failed)
+
             (undoProcess phandle)
       where
         undoProcess phandle = whenJustM (pidOfHandle phandle) reapPid
@@ -528,30 +519,42 @@ pidOfHandle phandle =
 #endif
 
 procurement :: GameRawInstance DwarfFortressPersistent
-            -> GameInstance DwarfFortressPersistent
+            -> TChan (GameEvent (GameChangesets DwarfFortressPersistent))
+            -> TChan (GameAction (GameInputs DwarfFortressPersistent))
             -> IO ()
-procurement raw_instance game_instance = do
-    writeIORef (_parentInstance raw_instance) (Right $ Just game_instance)
+procurement raw_instance event_chan action_chan = do
     outputs_chan <- atomically $ dupTChan (_outputsChan raw_instance)
 
     catchSilents_ $
         forever $ do
-            ( maybe_new_changesets,
+            ( is_alive,
+              maybe_new_changesets,
               maybe_new_inputs,
               maybe_new_death ) <-
                     atomically $ do
-                        results <- liftM3 (,,)
+                        results <- liftM4 (,,,)
+                            (readTVar $ _alive raw_instance)
                             (tryReadTChan outputs_chan)
-                            (tryReceiveInputSTM game_instance)
+                            (tryReadTChan action_chan)
                             (tryReadTChan death_chan)
                         case results of
-                            (Nothing, Nothing, Nothing) -> retry
+                            (True, Nothing, Nothing, Nothing) -> retry
                             _ -> return results
 
-            whenJust maybe_new_death $ \_ -> throwIO SilentlyDie
-            whenJust maybe_new_changesets $ changesets game_instance
-            whenJust maybe_new_inputs $ atomically . writeTChan inputs_chan
+            unless is_alive $ die
+            whenJust maybe_new_death $ const die
+            whenJust maybe_new_changesets $ \sets -> do
+                atomically $ writeTChan event_chan $
+                    Changesets sets
+            case maybe_new_inputs of
+                Just (InputAction x) -> do
+                    atomically $ writeTChan inputs_chan x
+                _ -> return ()
   where
+    die = do
+        atomically $ writeTChan event_chan GameDied
+        throwIO SilentlyDie
+
     death_chan = _deathChan raw_instance
     inputs_chan = _inputsChan raw_instance
 
